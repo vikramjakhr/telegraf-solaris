@@ -9,51 +9,20 @@ import (
 
 var fDebug = flag.Bool("debug", false,
 	"turn on debug logging")
-var pprofAddr = flag.String("pprof-addr", "",
-	"pprof address to listen on, not activate pprof if empty")
-var fQuiet = flag.Bool("quiet", false,
-	"run in quiet mode")
-var fTest = flag.Bool("test", false, "gather metrics, print them out, and exit")
 var fConfig = flag.String("config", "", "configuration file to load")
-var fConfigDirectory = flag.String("config-directory", "",
-	"directory containing additional *.conf files")
 var fVersion = flag.Bool("version", false, "display the version")
 var fSampleConfig = flag.Bool("sample-config", false,
 	"print out full sample configuration")
-var fPidfile = flag.String("pidfile", "", "file to write our pid to")
-var fInputFilters = flag.String("input-filter", "",
-	"filter the inputs to enable, separator is :")
 var fInputList = flag.Bool("input-list", false,
 	"print available input plugins.")
-var fOutputFilters = flag.String("output-filter", "",
-	"filter the outputs to enable, separator is :")
 var fOutputList = flag.Bool("output-list", false,
 	"print available output plugins.")
-var fAggregatorFilters = flag.String("aggregator-filter", "",
-	"filter the aggregators to enable, separator is :")
-var fProcessorFilters = flag.String("processor-filter", "",
-	"filter the processors to enable, separator is :")
 var fUsage = flag.String("usage", "",
 	"print usage for a plugin, ie, 'telegraf --usage mysql'")
-var fService = flag.String("service", "",
-	"operate on the service")
 
 var (
 	nextVersion = "1.5.0"
-	version     string
-	commit      string
-	branch      string
 )
-
-func init() {
-	// If commit or branch are not set, make that clear.
-	if commit == "" {
-		commit = "unknown"
-	}
-	if branch == "" {
-		branch = "unknown"
-	}
-}
 
 const usage = `Telegraf, The plugin-driven server agent for collecting and reporting metrics.
 
@@ -103,14 +72,10 @@ func usageExit(rc int) {
 }
 
 func displayVersion() string {
-	if version == "" {
-		return fmt.Sprintf("v%s~%s", nextVersion, commit)
-	}
-	return "v" + version
+	return fmt.Sprintf("v%s", nextVersion)
 }
 
 func main() {
-	fmt.Println("Starting....")
 	flag.Usage = func() { usageExit(0) }
 	flag.Parse()
 	args := flag.Args()
@@ -118,9 +83,20 @@ func main() {
 	if len(args) > 0 {
 		switch args[0] {
 		case "version":
-			fmt.Printf("Telegraf %s (git: %s %s)\n", displayVersion(), branch, commit)
+			fmt.Printf("Telegraf %s\n", displayVersion())
+			return
+		case "config":
 			return
 		}
 	}
-	fmt.Println("Done")
+
+	// switch for flags which just do something and exit immediately
+	switch {
+	case *fVersion:
+		fmt.Printf("Telegraf %s\n", displayVersion())
+		return
+	case *fSampleConfig:
+		return
+	}
+
 }
