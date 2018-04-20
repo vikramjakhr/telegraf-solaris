@@ -26,15 +26,7 @@ func NewRunningOutput(
 	name string,
 	output Output,
 	conf *OutputConfig,
-	batchSize int,
-	bufferLimit int,
 ) *RunningOutput {
-	if bufferLimit == 0 {
-		bufferLimit = DEFAULT_METRIC_BUFFER_LIMIT
-	}
-	if batchSize == 0 {
-		batchSize = DEFAULT_METRIC_BATCH_SIZE
-	}
 	ro := &RunningOutput{
 		Name:   name,
 		Output: output,

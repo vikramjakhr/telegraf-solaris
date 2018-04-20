@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"./toml"
 	"errors"
 	"strconv"
+	"math"
 )
 
 var (
@@ -301,11 +301,11 @@ func (c *Config) LoadConfig(path string) error {
 	// Parse tags tables first:
 	for _, tableName := range []string{"tags", "global_tags"} {
 		if val, ok := tbl.Fields[tableName]; ok {
-			subTable, ok := val.(*toml.Table)
+			subTable, ok := val.(*Table)
 			if !ok {
 				return fmt.Errorf("%s: invalid configuration", path)
 			}
-			if err = toml.UnmarshalTable(subTable, c.Tags); err != nil {
+			if err = UnmarshalTable(subTable, c.Tags); err != nil {
 				log.Printf("E! Could not parse [global_tags] config\n")
 				return fmt.Errorf("Error parsing %s, %s", path, err)
 			}
@@ -314,20 +314,19 @@ func (c *Config) LoadConfig(path string) error {
 
 	// Parse agent table:
 	if val, ok := tbl.Fields["agent"]; ok {
-		subTable, ok := val.(*toml.Table)
+		subTable, ok := val.(*Table)
 		if !ok {
 			return fmt.Errorf("%s: invalid configuration", path)
 		}
-		if err = toml.UnmarshalTable(subTable, c.Agent); err != nil {
+		if err = UnmarshalTable(subTable, c.Agent); err != nil {
 			log.Printf("E! Could not parse [agent] config\n")
 			return fmt.Errorf("Error parsing %s, %s", path, err)
 		}
 	}
 
 	// Parse all the rest of the plugins:
-	// TODO
-	/*for name, val := range tbl.Fields {
-		subTable, ok := val.(*toml.Table)
+	for name, val := range tbl.Fields {
+		subTable, ok := val.(*Table)
 		if !ok {
 			return fmt.Errorf("%s: invalid configuration", path)
 		}
@@ -338,11 +337,11 @@ func (c *Config) LoadConfig(path string) error {
 			for pluginName, pluginVal := range subTable.Fields {
 				switch pluginSubTable := pluginVal.(type) {
 				// legacy [outputs.influxdb] support
-				case *toml.Table:
+				case *Table:
 					if err = c.addOutput(pluginName, pluginSubTable); err != nil {
 						return fmt.Errorf("Error parsing %s, %s", path, err)
 					}
-				case []*toml.Table:
+				case []*Table:
 					for _, t := range pluginSubTable {
 						if err = c.addOutput(pluginName, t); err != nil {
 							return fmt.Errorf("Error parsing %s, %s", path, err)
@@ -357,11 +356,11 @@ func (c *Config) LoadConfig(path string) error {
 			for pluginName, pluginVal := range subTable.Fields {
 				switch pluginSubTable := pluginVal.(type) {
 				// legacy [inputs.cpu] support
-				case *toml.Table:
+				case *Table:
 					if err = c.addInput(pluginName, pluginSubTable); err != nil {
 						return fmt.Errorf("Error parsing %s, %s", path, err)
 					}
-				case []*toml.Table:
+				case []*Table:
 					for _, t := range pluginSubTable {
 						if err = c.addInput(pluginName, t); err != nil {
 							return fmt.Errorf("Error parsing %s, %s", path, err)
@@ -377,7 +376,82 @@ func (c *Config) LoadConfig(path string) error {
 				return fmt.Errorf("Error parsing %s, %s", path, err)
 			}
 		}
-	}*/
+	}
+	return nil
+}
+
+func (c *Config) addOutput(name string, table *Table) error {
+	if len(c.OutputFilters) > 0 && !sliceContains(name, c.OutputFilters) {
+		return nil
+	}
+	creator, ok := Outputs[name]
+	if !ok {
+		return fmt.Errorf("Undefined but requested output: %s", name)
+	}
+	output := creator()
+
+	// If the output has a SetSerializer function, then this means it can write
+	// arbitrary types of output, so build the serializer and set it.
+	switch t := output.(type) {
+	case SerializerOutput:
+		serializer, err := buildSerializer(name, table)
+		if err != nil {
+			return err
+		}
+		t.SetSerializer(serializer)
+	}
+
+	outputConfig, err := buildOutput(name, table)
+	if err != nil {
+		return err
+	}
+
+	if err := UnmarshalTable(table, output); err != nil {
+		return err
+	}
+
+	ro := NewRunningOutput(name, output, outputConfig)
+	c.Outputs = append(c.Outputs, ro)
+	return nil
+}
+
+func (c *Config) addInput(name string, table *Table) error {
+	if len(c.InputFilters) > 0 && !sliceContains(name, c.InputFilters) {
+		return nil
+	}
+	// Legacy support renaming io input to diskio
+	if name == "io" {
+		name = "diskio"
+	}
+
+	creator, ok := Inputs[name]
+	if !ok {
+		return fmt.Errorf("Undefined but requested input: %s", name)
+	}
+	input := creator()
+
+	// If the input has a SetParser function, then this means it can accept
+	// arbitrary types of input, so build the parser and set it.
+	switch t := input.(type) {
+	case parsers.ParserInput:
+		parser, err := buildParser(name, table)
+		if err != nil {
+			return err
+		}
+		t.SetParser(parser)
+	}
+
+	pluginConfig, err := buildInput(name, table)
+	if err != nil {
+		return err
+	}
+
+	if err := UnmarshalTable(table, input); err != nil {
+		return err
+	}
+
+	rp := NewRunningInput(input, pluginConfig)
+	c.Inputs = append(c.Inputs, rp)
 	return nil
 }
 
@@ -396,7 +470,7 @@ func escapeEnv(value string) string {
 // parseFile loads a TOML configuration from a provided path and
 // returns the AST produced from the TOML parser. When loading the file, it
 // will find environment variables and replace them.
-func parseFile(fpath string) (*toml.Table, error) {
+func parseFile(fpath string) (*Table, error) {
 	contents, err := ioutil.ReadFile(fpath)
 	if err != nil {
 		return nil, err
@@ -404,16 +478,17 @@ func parseFile(fpath string) (*toml.Table, error) {
 	// ugh windows why
 	contents = trimBOM(contents)
 
-	env_vars := envVarRe.FindAll(contents, -1)
+	// commenting below code for skipping env variables
+/*	env_vars := envVarRe.FindAll(contents, -1)
 	for _, env_var := range env_vars {
 		env_val, ok := os.LookupEnv(strings.TrimPrefix(string(env_var), "$"))
 		if ok {
 			env_val = escapeEnv(env_val)
 			contents = bytes.Replace(contents, env_var, []byte(env_val), 1)
 		}
-	}
+	}*/
 
-	return toml.Parse(contents)
+	return Parse(contents)
 }
 
 type InputCreator func() Input
@@ -518,4 +593,184 @@ func (d *Duration) UnmarshalTOML(b []byte) error {
 	}
 
 	return nil
+}
+
+func sliceContains(name string, list []string) bool {
+	for _, b := range list {
+		if b == name {
+			return true
+		}
+	}
+	return false
+}
+
+// buildSerializer grabs the necessary entries from the ast.Table for creating
+// a serializers.Serializer object, and creates it, which can then be added onto
+// an Output object.
+func buildSerializer(name string, tbl *Table) (Serializer, error) {
+	c := &SerializerConfig{TimestampUnits: time.Duration(1 * time.Second)}
+
+	if node, ok := tbl.Fields["data_format"]; ok {
+		if kv, ok := node.(*KeyValue); ok {
+			if str, ok := kv.Value.(*String); ok {
+				c.DataFormat = str.Value
+			}
+		}
+	}
+
+	if c.DataFormat == "" {
+		c.DataFormat = "influx"
+	}
+
+	if node, ok := tbl.Fields["prefix"]; ok {
+		if kv, ok := node.(*KeyValue); ok {
+			if str, ok := kv.Value.(*String); ok {
+				c.Prefix = str.Value
+			}
+		}
+	}
+
+	if node, ok := tbl.Fields["template"]; ok {
+		if kv, ok := node.(*KeyValue); ok {
+			if str, ok := kv.Value.(*String); ok {
+				c.Template = str.Value
+			}
+		}
+	}
+
+	if node, ok := tbl.Fields["json_timestamp_units"]; ok {
+		if kv, ok := node.(*KeyValue); ok {
+			if str, ok := kv.Value.(*String); ok {
+				timestampVal, err := time.ParseDuration(str.Value)
+				if err != nil {
+					return nil, fmt.Errorf("Unable to parse json_timestamp_units as a duration, %s", err)
+				}
+				// now that we have a duration, truncate it to the nearest
+				// power of ten (just in case)
+				nearest_exponent := int64(math.Log10(float64(timestampVal.Nanoseconds())))
+				new_nanoseconds := int64(math.Pow(10.0, float64(nearest_exponent)))
+				c.TimestampUnits = time.Duration(new_nanoseconds)
+			}
+		}
+	}
+
+	delete(tbl.Fields, "data_format")
+	delete(tbl.Fields, "prefix")
+	delete(tbl.Fields, "template")
+	delete(tbl.Fields, "json_timestamp_units")
+	return NewSerializer(c)
+}
+
+// buildOutput parses output specific items from the ast.Table,
+// builds the filter and returns an
+// models.OutputConfig to be inserted into models.RunningInput
+// Note: error exists in the return for future calls that might require error
+func buildOutput(name string, tbl *Table) (*OutputConfig, error) {
+	oc := &OutputConfig{
+		Name:   name,
+	}
+	return oc, nil
+}
+
+// buildParser grabs the necessary entries from the ast.Table for creating
+// a parsers.Parser object, and creates it, which can then be added onto
+// an Input object.
+func buildParser(name string, tbl *Table) (parsers.Parser, error) {
+	c := &parsers.Config{}
+
+	if node, ok := tbl.Fields["data_format"]; ok {
+		if kv, ok := node.(*ast.KeyValue); ok {
+			if str, ok := kv.Value.(*ast.String); ok {
+				c.DataFormat = str.Value
+			}
+		}
+	}
+
+	// Legacy support, exec plugin originally parsed JSON by default.
+	if name == "exec" && c.DataFormat == "" {
+		c.DataFormat = "json"
+	} else if c.DataFormat == "" {
+		c.DataFormat = "influx"
+	}
+
+	if node, ok := tbl.Fields["separator"]; ok {
+		if kv, ok := node.(*ast.KeyValue); ok {
+			if str, ok := kv.Value.(*ast.String); ok {
+				c.Separator = str.Value
+			}
+		}
+	}
+
+	if node, ok := tbl.Fields["templates"]; ok {
+		if kv, ok := node.(*ast.KeyValue); ok {
+			if ary, ok := kv.Value.(*ast.Array); ok {
+				for _, elem := range ary.Value {
+					if str, ok := elem.(*ast.String); ok {
+						c.Templates = append(c.Templates, str.Value)
+					}
+				}
+			}
+		}
+	}
+
+	if node, ok := tbl.Fields["tag_keys"]; ok {
+		if kv, ok := node.(*ast.KeyValue); ok {
+			if ary, ok := kv.Value.(*ast.Array); ok {
+				for _, elem := range ary.Value {
+					if str, ok := elem.(*ast.String); ok {
+						c.TagKeys = append(c.TagKeys, str.Value)
+					}
+				}
+			}
+		}
+	}
+
+	if node, ok := tbl.Fields["data_type"]; ok {
+		if kv, ok := node.(*ast.KeyValue); ok {
+			if str, ok := kv.Value.(*ast.String); ok {
+				c.DataType = str.Value
+			}
+		}
+	}
+
+	if node, ok := tbl.Fields["collectd_auth_file"]; ok {
+		if kv, ok := node.(*ast.KeyValue); ok {
+			if str, ok := kv.Value.(*ast.String); ok {
+				c.CollectdAuthFile = str.Value
+			}
+		}
+	}
+
+	if node, ok := tbl.Fields["collectd_security_level"]; ok {
+		if kv, ok := node.(*ast.KeyValue); ok {
+			if str, ok := kv.Value.(*ast.String); ok {
+				c.CollectdSecurityLevel = str.Value
+			}
+		}
+	}
+
+	if node, ok := tbl.Fields["collectd_typesdb"]; ok {
+		if kv, ok := node.(*ast.KeyValue); ok {
+			if ary, ok := kv.Value.(*ast.Array); ok {
+				for _, elem := range ary.Value {
+					if str, ok := elem.(*ast.String); ok {
+						c.CollectdTypesDB = append(c.CollectdTypesDB, str.Value)
+					}
+				}
+			}
+		}
+	}
+
+	c.MetricName = name
+
+	delete(tbl.Fields, "data_format")
+	delete(tbl.Fields, "separator")
+	delete(tbl.Fields, "templates")
+	delete(tbl.Fields, "tag_keys")
+	delete(tbl.Fields, "data_type")
+	delete(tbl.Fields, "collectd_auth_file")
+	delete(tbl.Fields, "collectd_security_level")
+	delete(tbl.Fields, "collectd_typesdb")
+
+	return parsers.NewParser(c)
 }
