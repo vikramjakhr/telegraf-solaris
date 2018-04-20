@@ -18,7 +18,7 @@ type Serializer interface {
 	// Serialize takes a single telegraf metric and turns it into a byte buffer.
 	// separate metrics should be separated by a newline, and there should be
 	// a newline at the end of the buffer.
-	Serialize(metric Matric) ([]byte, error)
+	Serialize(metric Metric) ([]byte, error)
 }
 
 // Config is a struct that covers the data types needed for all serializer types,

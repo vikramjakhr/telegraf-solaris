@@ -4,14 +4,13 @@ import (
 	ejson "encoding/json"
 	"time"
 
-	"github.com/influxdata/telegraf"
 )
 
 type JsonSerializer struct {
 	TimestampUnits time.Duration
 }
 
-func (s *JsonSerializer) Serialize(metric telegraf.Metric) ([]byte, error) {
+func (s *JsonSerializer) Serialize(metric Metric) ([]byte, error) {
 	m := make(map[string]interface{})
 	units_nanoseconds := s.TimestampUnits.Nanoseconds()
 	// if the units passed in were less than or equal to zero,
