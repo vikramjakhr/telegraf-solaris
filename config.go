@@ -15,6 +15,7 @@ import (
 
 	"gitlab.intelligrape.net/tothenew/tatasky-telegraf-light/toml"
 	"gitlab.intelligrape.net/tothenew/tatasky-telegraf-light/toml/ast"
+	"errors"
 )
 
 var (
@@ -392,4 +393,68 @@ func parseFile(fpath string) (*ast.Table, error) {
 	}
 
 	return toml.Parse(contents)
+}
+
+type InputCreator func() Input
+
+var Inputs = map[string]InputCreator{}
+
+func AddInput(name string, creator InputCreator) {
+	Inputs[name] = creator
+}
+
+type OutputCreator func() Output
+
+var Outputs = map[string]OutputCreator{}
+
+func AddOutput(name string, creator OutputCreator) {
+	Outputs[name] = creator
+}
+
+// PrintInputConfig prints the config usage of a single input.
+func PrintInputConfig(name string) error {
+	if creator, ok := Inputs[name]; ok {
+		printConfig(name, creator(), "inputs", false)
+	} else {
+		return errors.New(fmt.Sprintf("Input %s not found", name))
+	}
+	return nil
+}
+
+// PrintOutputConfig prints the config usage of a single output.
+func PrintOutputConfig(name string) error {
+	if creator, ok := Outputs[name]; ok {
+		printConfig(name, creator(), "outputs", false)
+	} else {
+		return errors.New(fmt.Sprintf("Output %s not found", name))
+	}
+	return nil
+}
+
+type printer interface {
+	Description() string
+	SampleConfig() string
+}
+
+func printConfig(name string, p printer, op string, commented bool) {
+	comment := ""
+	if commented {
+		comment = "# "
+	}
+	fmt.Printf("\n%s# %s\n%s[[%s.%s]]", comment, p.Description(), comment,
+		op, name)
+
+	config := p.SampleConfig()
+	if config == "" {
+		fmt.Printf("\n%s  # no configuration\n\n", comment)
+	} else {
+		lines := strings.Split(config, "\n")
+		for i, line := range lines {
+			if i == 0 || i == len(lines)-1 {
+				fmt.Print("\n")
+				continue
+			}
+			fmt.Print(strings.TrimRight(comment+line, " ") + "\n")
+		}
+	}
 }

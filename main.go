@@ -5,6 +5,7 @@ import (
 	"fmt"
 	_ "net/http/pprof" // Comment this line to disable pprof endpoint.
 	"os"
+	"log"
 )
 
 var fDebug = flag.Bool("debug", false,
@@ -75,6 +76,16 @@ func displayVersion() string {
 	return fmt.Sprintf("v%s", nextVersion)
 }
 
+func init() {
+	AddInput("cpu", func() Input {
+		return &CPUStats{
+			PerCPU:   true,
+			TotalCPU: true,
+			ps:       nil,
+		}
+	})
+}
+
 func main() {
 	flag.Usage = func() { usageExit(0) }
 	flag.Parse()
@@ -96,6 +107,13 @@ func main() {
 		fmt.Printf("Telegraf %s\n", displayVersion())
 		return
 	case *fSampleConfig:
+		return
+	case *fUsage != "":
+		err := PrintInputConfig(*fUsage)
+		err2 := PrintOutputConfig(*fUsage)
+		if err != nil && err2 != nil {
+			log.Fatalf("E! %s and %s", err, err2)
+		}
 		return
 	}
 
