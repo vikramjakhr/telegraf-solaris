@@ -2,13 +2,11 @@ package toml
 
 import (
 	"fmt"
-
-	"gitlab.intelligrape.net/tothenew/tatasky-telegraf-light/toml/ast"
 )
 
 // Parse returns an AST representation of TOML.
 // The toplevel is represented by a table.
-func Parse(data []byte) (*ast.Table, error) {
+func Parse(data []byte) (*Table, error) {
 	d := &parseState{p: &tomlParser{Buffer: string(data)}}
 	d.init()
 

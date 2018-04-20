@@ -13,8 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.intelligrape.net/tothenew/tatasky-telegraf-light/toml"
-	"gitlab.intelligrape.net/tothenew/tatasky-telegraf-light/toml/ast"
+	"./toml"
 	"errors"
 	"strconv"
 )
@@ -302,7 +301,7 @@ func (c *Config) LoadConfig(path string) error {
 	// Parse tags tables first:
 	for _, tableName := range []string{"tags", "global_tags"} {
 		if val, ok := tbl.Fields[tableName]; ok {
-			subTable, ok := val.(*ast.Table)
+			subTable, ok := val.(*toml.Table)
 			if !ok {
 				return fmt.Errorf("%s: invalid configuration", path)
 			}
@@ -315,7 +314,7 @@ func (c *Config) LoadConfig(path string) error {
 
 	// Parse agent table:
 	if val, ok := tbl.Fields["agent"]; ok {
-		subTable, ok := val.(*ast.Table)
+		subTable, ok := val.(*toml.Table)
 		if !ok {
 			return fmt.Errorf("%s: invalid configuration", path)
 		}
@@ -328,7 +327,7 @@ func (c *Config) LoadConfig(path string) error {
 	// Parse all the rest of the plugins:
 	// TODO
 	/*for name, val := range tbl.Fields {
-		subTable, ok := val.(*ast.Table)
+		subTable, ok := val.(*toml.Table)
 		if !ok {
 			return fmt.Errorf("%s: invalid configuration", path)
 		}
@@ -339,11 +338,11 @@ func (c *Config) LoadConfig(path string) error {
 			for pluginName, pluginVal := range subTable.Fields {
 				switch pluginSubTable := pluginVal.(type) {
 				// legacy [outputs.influxdb] support
-				case *ast.Table:
+				case *toml.Table:
 					if err = c.addOutput(pluginName, pluginSubTable); err != nil {
 						return fmt.Errorf("Error parsing %s, %s", path, err)
 					}
-				case []*ast.Table:
+				case []*toml.Table:
 					for _, t := range pluginSubTable {
 						if err = c.addOutput(pluginName, t); err != nil {
 							return fmt.Errorf("Error parsing %s, %s", path, err)
@@ -358,11 +357,11 @@ func (c *Config) LoadConfig(path string) error {
 			for pluginName, pluginVal := range subTable.Fields {
 				switch pluginSubTable := pluginVal.(type) {
 				// legacy [inputs.cpu] support
-				case *ast.Table:
+				case *toml.Table:
 					if err = c.addInput(pluginName, pluginSubTable); err != nil {
 						return fmt.Errorf("Error parsing %s, %s", path, err)
 					}
-				case []*ast.Table:
+				case []*toml.Table:
 					for _, t := range pluginSubTable {
 						if err = c.addInput(pluginName, t); err != nil {
 							return fmt.Errorf("Error parsing %s, %s", path, err)
@@ -397,7 +396,7 @@ func escapeEnv(value string) string {
 // parseFile loads a TOML configuration from a provided path and
 // returns the AST produced from the TOML parser. When loading the file, it
 // will find environment variables and replace them.
-func parseFile(fpath string) (*ast.Table, error) {
+func parseFile(fpath string) (*toml.Table, error) {
 	contents, err := ioutil.ReadFile(fpath)
 	if err != nil {
 		return nil, err

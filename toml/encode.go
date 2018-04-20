@@ -7,10 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"time"
-
 	"go/ast"
-
-	"github.com/naoina/go-stringutil"
 )
 
 const (
@@ -96,7 +93,7 @@ func marshal(buf []byte, prefix string, rv reflect.Value, inArray, arrayTable bo
 			continue
 		}
 		if colName == "" {
-			colName = stringutil.ToSnakeCase(ft.Name)
+			colName = ToSnakeCase(ft.Name)
 		}
 		fv := rv.Field(i)
 		switch rest {
