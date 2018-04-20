@@ -7,8 +7,6 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-
-	"gitlab.intelligrape.net/tothenew/tatasky-telegraf-light/toml/ast"
 )
 
 const (
@@ -83,7 +81,7 @@ type Unmarshaler interface {
 	UnmarshalTOML([]byte) error
 }
 
-// UnmarshalTable applies the contents of an ast.Table to the value pointed at by v.
+// UnmarshalTable applies the contents of an Table to the value pointed at by v.
 //
 // UnmarshalTable will mapped to v that according to following rules:
 //
@@ -95,7 +93,7 @@ type Unmarshaler interface {
 //	TOML arrays to any type of slice or []interface{}
 //	TOML tables to struct
 //	TOML array of tables to slice of struct
-func UnmarshalTable(t *ast.Table, v interface{}) (err error) {
+func UnmarshalTable(t *Table, v interface{}) (err error) {
 	if v == nil {
 		return fmt.Errorf("v must not be nil")
 	}
@@ -111,7 +109,7 @@ func UnmarshalTable(t *ast.Table, v interface{}) (err error) {
 	}
 	for key, val := range t.Fields {
 		switch av := val.(type) {
-		case *ast.KeyValue:
+		case *KeyValue:
 			fv, fieldName, found := findField(rv, key)
 			if !found {
 				return fmt.Errorf("line %d: field corresponding to `%s' is not defined in `%T'", av.Line, key, v)
@@ -131,7 +129,7 @@ func UnmarshalTable(t *ast.Table, v interface{}) (err error) {
 					rv.SetMapIndex(reflect.ValueOf(fieldName), fv)
 				}
 			}
-		case *ast.Table:
+		case *Table:
 			fv, fieldName, found := findField(rv, key)
 			if !found {
 				return fmt.Errorf("line %d: field corresponding to `%s' is not defined in `%T'", av.Line, key, v)
@@ -165,7 +163,7 @@ func UnmarshalTable(t *ast.Table, v interface{}) (err error) {
 			default:
 				return fmt.Errorf("line %d: `%v.%s' must be struct or map, but %v given", av.Line, rv.Type(), fieldName, fv.Kind())
 			}
-		case []*ast.Table:
+		case []*Table:
 			fv, fieldName, found := findField(rv, key)
 			if !found {
 				return fmt.Errorf("line %d: field corresponding to `%s' is not defined in `%T'", av[0].Line, key, v)
@@ -233,7 +231,7 @@ func setUnmarshaler(lhs reflect.Value, data string) (error, bool) {
 	return nil, false
 }
 
-func setValue(lhs reflect.Value, val ast.Value) error {
+func setValue(lhs reflect.Value, val Value) error {
 	for lhs.Kind() == reflect.Ptr {
 		lhs.Set(reflect.New(lhs.Type().Elem()))
 		lhs = lhs.Elem()
@@ -242,27 +240,27 @@ func setValue(lhs reflect.Value, val ast.Value) error {
 		return err
 	}
 	switch v := val.(type) {
-	case *ast.Integer:
+	case *Integer:
 		if err := setInt(lhs, v); err != nil {
 			return err
 		}
-	case *ast.Float:
+	case *Float:
 		if err := setFloat(lhs, v); err != nil {
 			return err
 		}
-	case *ast.String:
+	case *String:
 		if err := setString(lhs, v); err != nil {
 			return err
 		}
-	case *ast.Boolean:
+	case *Boolean:
 		if err := setBoolean(lhs, v); err != nil {
 			return err
 		}
-	case *ast.Datetime:
+	case *Datetime:
 		if err := setDatetime(lhs, v); err != nil {
 			return err
 		}
-	case *ast.Array:
+	case *Array:
 		if err := setArray(lhs, v); err != nil {
 			return err
 		}
@@ -270,7 +268,7 @@ func setValue(lhs reflect.Value, val ast.Value) error {
 	return nil
 }
 
-func setInt(fv reflect.Value, v *ast.Integer) error {
+func setInt(fv reflect.Value, v *Integer) error {
 	i, err := v.Int()
 	if err != nil {
 		return err
@@ -291,7 +289,7 @@ func setInt(fv reflect.Value, v *ast.Integer) error {
 	return nil
 }
 
-func setFloat(fv reflect.Value, v *ast.Float) error {
+func setFloat(fv reflect.Value, v *Float) error {
 	f, err := v.Float()
 	if err != nil {
 		return err
@@ -310,11 +308,11 @@ func setFloat(fv reflect.Value, v *ast.Float) error {
 	return nil
 }
 
-func setString(fv reflect.Value, v *ast.String) error {
+func setString(fv reflect.Value, v *String) error {
 	return set(fv, v.Value)
 }
 
-func setBoolean(fv reflect.Value, v *ast.Boolean) error {
+func setBoolean(fv reflect.Value, v *Boolean) error {
 	b, err := v.Boolean()
 	if err != nil {
 		return err
@@ -322,7 +320,7 @@ func setBoolean(fv reflect.Value, v *ast.Boolean) error {
 	return set(fv, b)
 }
 
-func setDatetime(fv reflect.Value, v *ast.Datetime) error {
+func setDatetime(fv reflect.Value, v *Datetime) error {
 	tm, err := v.Time()
 	if err != nil {
 		return err
@@ -330,7 +328,7 @@ func setDatetime(fv reflect.Value, v *ast.Datetime) error {
 	return set(fv, tm)
 }
 
-func setArray(fv reflect.Value, v *ast.Array) error {
+func setArray(fv reflect.Value, v *Array) error {
 	if len(v.Value) == 0 {
 		return nil
 	}
@@ -368,30 +366,30 @@ func set(fv reflect.Value, v interface{}) error {
 
 type stack struct {
 	key   string
-	table *ast.Table
+	table *Table
 }
 
 type toml struct {
-	table        *ast.Table
+	table        *Table
 	line         int
-	currentTable *ast.Table
+	currentTable *Table
 	s            string
 	key          string
-	val          ast.Value
+	val          Value
 	arr          *array
-	tableMap     map[string]*ast.Table
+	tableMap     map[string]*Table
 	stack        []*stack
 	skip         bool
 }
 
 func (p *toml) init(data []rune) {
 	p.line = 1
-	p.table = &ast.Table{
+	p.table = &Table{
 		Line: p.line,
-		Type: ast.TableTypeNormal,
+		Type: TableTypeNormal,
 		Data: data[:len(data)-1], // truncate the end_symbol added by PEG parse generator.
 	}
-	p.tableMap = map[string]*ast.Table{
+	p.tableMap = map[string]*Table{
 		"": p.table,
 	}
 	p.currentTable = p.table
@@ -402,32 +400,32 @@ func (p *toml) Error(err error) {
 }
 
 func (p *tomlParser) SetTime(begin, end int) {
-	p.val = &ast.Datetime{
-		Position: ast.Position{Begin: begin, End: end},
+	p.val = &Datetime{
+		Position: Position{Begin: begin, End: end},
 		Data:     p.buffer[begin:end],
 		Value:    string(p.buffer[begin:end]),
 	}
 }
 
 func (p *tomlParser) SetFloat64(begin, end int) {
-	p.val = &ast.Float{
-		Position: ast.Position{Begin: begin, End: end},
+	p.val = &Float{
+		Position: Position{Begin: begin, End: end},
 		Data:     p.buffer[begin:end],
 		Value:    underscoreReplacer.Replace(string(p.buffer[begin:end])),
 	}
 }
 
 func (p *tomlParser) SetInt64(begin, end int) {
-	p.val = &ast.Integer{
-		Position: ast.Position{Begin: begin, End: end},
+	p.val = &Integer{
+		Position: Position{Begin: begin, End: end},
 		Data:     p.buffer[begin:end],
 		Value:    underscoreReplacer.Replace(string(p.buffer[begin:end])),
 	}
 }
 
 func (p *tomlParser) SetString(begin, end int) {
-	p.val = &ast.String{
-		Position: ast.Position{Begin: begin, End: end},
+	p.val = &String{
+		Position: Position{Begin: begin, End: end},
 		Data:     p.buffer[begin:end],
 		Value:    p.s,
 	}
@@ -435,8 +433,8 @@ func (p *tomlParser) SetString(begin, end int) {
 }
 
 func (p *tomlParser) SetBool(begin, end int) {
-	p.val = &ast.Boolean{
-		Position: ast.Position{Begin: begin, End: end},
+	p.val = &Boolean{
+		Position: Position{Begin: begin, End: end},
 		Data:     p.buffer[begin:end],
 		Value:    string(p.buffer[begin:end]),
 	}
@@ -444,22 +442,22 @@ func (p *tomlParser) SetBool(begin, end int) {
 
 func (p *tomlParser) StartArray() {
 	if p.arr == nil {
-		p.arr = &array{line: p.line, current: &ast.Array{}}
+		p.arr = &array{line: p.line, current: &Array{}}
 		return
 	}
-	p.arr.child = &array{parent: p.arr, line: p.line, current: &ast.Array{}}
+	p.arr.child = &array{parent: p.arr, line: p.line, current: &Array{}}
 	p.arr = p.arr.child
 }
 
 func (p *tomlParser) AddArrayVal() {
 	if p.arr.current == nil {
-		p.arr.current = &ast.Array{}
+		p.arr.current = &Array{}
 	}
 	p.arr.current.Value = append(p.arr.current.Value, p.val)
 }
 
 func (p *tomlParser) SetArray(begin, end int) {
-	p.arr.current.Position = ast.Position{Begin: begin, End: end}
+	p.arr.current.Position = Position{Begin: begin, End: end}
 	p.arr.current.Data = p.buffer[begin:end]
 	p.val = p.arr.current
 	p.arr = p.arr.parent
@@ -469,11 +467,11 @@ func (p *toml) SetTable(buf []rune, begin, end int) {
 	p.setTable(p.table, buf, begin, end)
 }
 
-func (p *toml) setTable(t *ast.Table, buf []rune, begin, end int) {
+func (p *toml) setTable(t *Table, buf []rune, begin, end int) {
 	name := string(buf[begin:end])
 	names := splitTableKey(name)
 	if t, exists := p.tableMap[name]; exists {
-		if lt := p.tableMap[names[len(names)-1]]; t.Type == ast.TableTypeArray || lt != nil && lt.Type == ast.TableTypeNormal {
+		if lt := p.tableMap[names[len(names)-1]]; t.Type == TableTypeArray || lt != nil && lt.Type == TableTypeNormal {
 			p.Error(fmt.Errorf("table `%s' is in conflict with %v table in line %d", name, t.Type, t.Line))
 		}
 	}
@@ -496,9 +494,9 @@ func (p *toml) SetArrayTable(buf []rune, begin, end int) {
 	p.setArrayTable(p.table, buf, begin, end)
 }
 
-func (p *toml) setArrayTable(t *ast.Table, buf []rune, begin, end int) {
+func (p *toml) setArrayTable(t *Table, buf []rune, begin, end int) {
 	name := string(buf[begin:end])
-	if t, exists := p.tableMap[name]; exists && t.Type == ast.TableTypeNormal {
+	if t, exists := p.tableMap[name]; exists && t.Type == TableTypeNormal {
 		p.Error(fmt.Errorf("table `%s' is in conflict with %v table in line %d", name, t.Type, t.Line))
 	}
 	names := splitTableKey(name)
@@ -507,21 +505,21 @@ func (p *toml) setArrayTable(t *ast.Table, buf []rune, begin, end int) {
 		p.Error(err)
 	}
 	last := names[len(names)-1]
-	tbl := &ast.Table{
-		Position: ast.Position{begin, end},
+	tbl := &Table{
+		Position: Position{begin, end},
 		Line:     p.line,
 		Name:     last,
-		Type:     ast.TableTypeArray,
+		Type:     TableTypeArray,
 	}
 	switch v := t.Fields[last].(type) {
 	case nil:
 		if t.Fields == nil {
 			t.Fields = make(map[string]interface{})
 		}
-		t.Fields[last] = []*ast.Table{tbl}
-	case []*ast.Table:
+		t.Fields[last] = []*Table{tbl}
+	case []*Table:
 		t.Fields[last] = append(v, tbl)
-	case *ast.KeyValue:
+	case *KeyValue:
 		p.Error(fmt.Errorf("key `%s' is in conflict with line %d", last, v.Line))
 	default:
 		p.Error(fmt.Errorf("BUG: key `%s' is in conflict but it's unknown type `%T'", last, v))
@@ -564,9 +562,9 @@ func (p *toml) AddKeyValue() {
 	}
 	if val, exists := p.currentTable.Fields[p.key]; exists {
 		switch v := val.(type) {
-		case *ast.Table:
+		case *Table:
 			p.Error(fmt.Errorf("key `%s' is in conflict with %v table in line %d", p.key, v.Type, v.Line))
-		case *ast.KeyValue:
+		case *KeyValue:
 			p.Error(fmt.Errorf("key `%s' is in conflict with line %d", p.key, v.Line))
 		default:
 			p.Error(fmt.Errorf("BUG: key `%s' is in conflict but it's unknown type `%T'", p.key, v))
@@ -575,7 +573,7 @@ func (p *toml) AddKeyValue() {
 	if p.currentTable.Fields == nil {
 		p.currentTable.Fields = make(map[string]interface{})
 	}
-	p.currentTable.Fields[p.key] = &ast.KeyValue{
+	p.currentTable.Fields[p.key] = &KeyValue{
 		Key:   p.key,
 		Value: p.val,
 		Line:  p.line,
@@ -610,14 +608,14 @@ func (p *toml) unquote(s string) string {
 	return s
 }
 
-func (p *toml) lookupTable(t *ast.Table, keys []string) (*ast.Table, error) {
+func (p *toml) lookupTable(t *Table, keys []string) (*Table, error) {
 	for _, s := range keys {
 		val, exists := t.Fields[s]
 		if !exists {
-			tbl := &ast.Table{
+			tbl := &Table{
 				Line: p.line,
 				Name: s,
-				Type: ast.TableTypeNormal,
+				Type: TableTypeNormal,
 			}
 			if t.Fields == nil {
 				t.Fields = make(map[string]interface{})
@@ -627,11 +625,11 @@ func (p *toml) lookupTable(t *ast.Table, keys []string) (*ast.Table, error) {
 			continue
 		}
 		switch v := val.(type) {
-		case *ast.Table:
+		case *Table:
 			t = v
-		case []*ast.Table:
+		case []*Table:
 			t = v[len(v)-1]
-		case *ast.KeyValue:
+		case *KeyValue:
 			return nil, fmt.Errorf("key `%s' is in conflict with line %d", s, v.Line)
 		default:
 			return nil, fmt.Errorf("BUG: key `%s' is in conflict but it's unknown type `%T'", s, v)
@@ -673,6 +671,6 @@ func (e convertError) Error() string {
 type array struct {
 	parent  *array
 	child   *array
-	current *ast.Array
+	current *Array
 	line    int
 }
