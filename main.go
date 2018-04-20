@@ -6,6 +6,9 @@ import (
 	_ "net/http/pprof" // Comment this line to disable pprof endpoint.
 	"os"
 	"log"
+	"syscall"
+	"os/signal"
+	"strings"
 )
 
 var fDebug = flag.Bool("debug", false,
@@ -103,6 +106,18 @@ func main() {
 
 	// switch for flags which just do something and exit immediately
 	switch {
+	case *fOutputList:
+		fmt.Println("Available Output Plugins:")
+		for k, _ := range Outputs {
+			fmt.Printf("  %s\n", k)
+		}
+		return
+	case *fInputList:
+		fmt.Println("Available Input Plugins:")
+		for k, _ := range Inputs {
+			fmt.Printf("  %s\n", k)
+		}
+		return
 	case *fVersion:
 		fmt.Printf("Telegraf %s\n", displayVersion())
 		return
@@ -117,4 +132,67 @@ func main() {
 		return
 	}
 
+}
+
+func reloadLoop(
+	stop chan struct{},
+) {
+	reload := make(chan bool, 1)
+	reload <- true
+	for <-reload {
+		reload <- false
+
+		// If no other options are specified, load the config file and run.
+		c := NewConfig()
+		err := c.LoadConfig(*fConfig)
+		if err != nil {
+			log.Fatal("E! " + err.Error())
+		}
+
+		if len(Inputs) == 0 {
+			log.Fatalf("E! Error: no inputs found, did you provide a valid config file?")
+		}
+
+		if int64(c.Agent.Interval.Duration) <= 0 {
+			log.Fatalf("E! Agent interval must be positive, found %s",
+				c.Agent.Interval.Duration)
+		}
+
+		ag, err := NewAgent(c)
+		if err != nil {
+			log.Fatal("E! " + err.Error())
+		}
+
+		err = ag.Connect()
+		if err != nil {
+			log.Fatal("E! " + err.Error())
+		}
+
+		shutdown := make(chan struct{})
+		signals := make(chan os.Signal)
+		signal.Notify(signals, os.Interrupt, syscall.SIGHUP)
+		go func() {
+			select {
+			case sig := <-signals:
+				if sig == os.Interrupt {
+					close(shutdown)
+				}
+				if sig == syscall.SIGHUP {
+					log.Printf("I! Reloading Telegraf config\n")
+					<-reload
+					reload <- true
+					close(shutdown)
+				}
+			case <-stop:
+				close(shutdown)
+			}
+		}()
+
+		log.Printf("I! Starting Telegraf %s\n", displayVersion())
+		log.Printf("I! Loaded outputs: %s", strings.Join(c.OutputNames(), " "))
+		log.Printf("I! Loaded inputs: %s", strings.Join(c.InputNames(), " "))
+		log.Printf("I! Tags enabled: %s", c.ListTags())
+
+		ag.Run(shutdown)
+	}
 }
