@@ -16,6 +16,7 @@ import (
 	"gitlab.intelligrape.net/tothenew/tatasky-telegraf-light/toml"
 	"gitlab.intelligrape.net/tothenew/tatasky-telegraf-light/toml/ast"
 	"errors"
+	"strconv"
 )
 
 var (
@@ -44,21 +45,20 @@ type Config struct {
 	OutputFilters []string
 
 	Agent *AgentConfig
-	//Inputs      []*models.RunningInput
-	//Outputs     []*models.RunningOutput
+	Inputs      []*RunningInput
+	Outputs     []*RunningOutput
 }
 
 func NewConfig() *Config {
 	c := &Config{
 		// Agent defaults:
 		Agent: &AgentConfig{
-			Interval: 10 * time.Second,
+			Interval: Duration{Duration: 10 * time.Second},
 		},
 
 		Tags: make(map[string]string),
-		//Inputs:        make([]*models.RunningInput, 0),
-		//Outputs:       make([]*models.RunningOutput, 0),
-		//Processors:    make([]*models.RunningProcessor, 0),
+		Inputs:        make([]*RunningInput, 0),
+		Outputs:       make([]*RunningOutput, 0),
 		InputFilters:  make([]string, 0),
 		OutputFilters: make([]string, 0),
 	}
@@ -67,10 +67,12 @@ func NewConfig() *Config {
 
 type AgentConfig struct {
 	// Interval at which to gather information
-	Interval time.Duration
+	Interval Duration
 
 	// Logfile specifies the file to send logs to
-	Logfile string
+	Logfile  string
+	Hostname string
+	OmitHostname bool
 }
 
 // Inputs returns a list of strings of the configured inputs.
@@ -217,6 +219,26 @@ var serviceInputHeader = `
 #                            SERVICE INPUT PLUGINS                            #
 ###############################################################################
 `
+
+
+// Inputs returns a list of strings of the configured inputs.
+func (c *Config) InputNames() []string {
+	var name []string
+	for _, input := range c.Inputs {
+		name = append(name, input.Name())
+	}
+	return name
+}
+
+// Outputs returns a list of strings of the configured outputs.
+func (c *Config) OutputNames() []string {
+	var name []string
+	for _, output := range c.Outputs {
+		name = append(name, output.Name)
+	}
+	return name
+}
+
 
 func (c *Config) LoadDirectory(path string) error {
 	walkfn := func(thispath string, info os.FileInfo, _ error) error {
@@ -457,4 +479,44 @@ func printConfig(name string, p printer, op string, commented bool) {
 			fmt.Print(strings.TrimRight(comment+line, " ") + "\n")
 		}
 	}
+}
+
+// Duration just wraps time.Duration
+type Duration struct {
+	Duration time.Duration
+}
+
+// UnmarshalTOML parses the duration from the TOML config file
+func (d *Duration) UnmarshalTOML(b []byte) error {
+	var err error
+	b = bytes.Trim(b, `'`)
+
+	// see if we can directly convert it
+	d.Duration, err = time.ParseDuration(string(b))
+	if err == nil {
+		return nil
+	}
+
+	// Parse string duration, ie, "1s"
+	if uq, err := strconv.Unquote(string(b)); err == nil && len(uq) > 0 {
+		d.Duration, err = time.ParseDuration(uq)
+		if err == nil {
+			return nil
+		}
+	}
+
+	// First try parsing as integer seconds
+	sI, err := strconv.ParseInt(string(b), 10, 64)
+	if err == nil {
+		d.Duration = time.Second * time.Duration(sI)
+		return nil
+	}
+	// Second try parsing as float seconds
+	sF, err := strconv.ParseFloat(string(b), 64)
+	if err == nil {
+		d.Duration = time.Second * time.Duration(sF)
+		return nil
+	}
+
+	return nil
 }
