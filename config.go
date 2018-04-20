@@ -43,9 +43,9 @@ type Config struct {
 	InputFilters  []string
 	OutputFilters []string
 
-	Agent *AgentConfig
-	Inputs      []*RunningInput
-	Outputs     []*RunningOutput
+	Agent   *AgentConfig
+	Inputs  []*RunningInput
+	Outputs []*RunningOutput
 }
 
 func NewConfig() *Config {
@@ -55,7 +55,7 @@ func NewConfig() *Config {
 			Interval: Duration{Duration: 10 * time.Second},
 		},
 
-		Tags: make(map[string]string),
+		Tags:          make(map[string]string),
 		Inputs:        make([]*RunningInput, 0),
 		Outputs:       make([]*RunningOutput, 0),
 		InputFilters:  make([]string, 0),
@@ -68,9 +68,18 @@ type AgentConfig struct {
 	// Interval at which to gather information
 	Interval Duration
 
-	// Logfile specifies the file to send logs to
-	Logfile  string
-	Hostname string
+	RoundInterval bool
+	Precision Duration
+	CollectionJitter Duration
+	FlushInterval Duration
+	FlushJitter Duration
+	MetricBatchSize int
+	MetricBufferLimit int
+	FlushBufferWhenFull bool
+	UTC bool `toml:"utc"`
+	Debug bool
+	Logfile      string
+	Hostname     string
 	OmitHostname bool
 }
 
@@ -219,7 +228,6 @@ var serviceInputHeader = `
 ###############################################################################
 `
 
-
 // Inputs returns a list of strings of the configured inputs.
 func (c *Config) InputNames() []string {
 	var name []string
@@ -237,7 +245,6 @@ func (c *Config) OutputNames() []string {
 	}
 	return name
 }
-
 
 func (c *Config) LoadDirectory(path string) error {
 	walkfn := func(thispath string, info os.FileInfo, _ error) error {
@@ -433,7 +440,7 @@ func (c *Config) addInput(name string, table *Table) error {
 	// If the input has a SetParser function, then this means it can accept
 	// arbitrary types of input, so build the parser and set it.
 	switch t := input.(type) {
-	case parsers.ParserInput:
+	case ParserInput:
 		parser, err := buildParser(name, table)
 		if err != nil {
 			return err
@@ -479,14 +486,14 @@ func parseFile(fpath string) (*Table, error) {
 	contents = trimBOM(contents)
 
 	// commenting below code for skipping env variables
-/*	env_vars := envVarRe.FindAll(contents, -1)
-	for _, env_var := range env_vars {
-		env_val, ok := os.LookupEnv(strings.TrimPrefix(string(env_var), "$"))
-		if ok {
-			env_val = escapeEnv(env_val)
-			contents = bytes.Replace(contents, env_var, []byte(env_val), 1)
-		}
-	}*/
+	/*	env_vars := envVarRe.FindAll(contents, -1)
+		for _, env_var := range env_vars {
+			env_val, ok := os.LookupEnv(strings.TrimPrefix(string(env_var), "$"))
+			if ok {
+				env_val = escapeEnv(env_val)
+				contents = bytes.Replace(contents, env_var, []byte(env_val), 1)
+			}
+		}*/
 
 	return Parse(contents)
 }
@@ -667,7 +674,7 @@ func buildSerializer(name string, tbl *Table) (Serializer, error) {
 // Note: error exists in the return for future calls that might require error
 func buildOutput(name string, tbl *Table) (*OutputConfig, error) {
 	oc := &OutputConfig{
-		Name:   name,
+		Name: name,
 	}
 	return oc, nil
 }
@@ -675,12 +682,12 @@ func buildOutput(name string, tbl *Table) (*OutputConfig, error) {
 // buildParser grabs the necessary entries from the ast.Table for creating
 // a parsers.Parser object, and creates it, which can then be added onto
 // an Input object.
-func buildParser(name string, tbl *Table) (parsers.Parser, error) {
-	c := &parsers.Config{}
+func buildParser(name string, tbl *Table) (Parser, error) {
+	c := &ParserConfig{}
 
 	if node, ok := tbl.Fields["data_format"]; ok {
-		if kv, ok := node.(*ast.KeyValue); ok {
-			if str, ok := kv.Value.(*ast.String); ok {
+		if kv, ok := node.(*KeyValue); ok {
+			if str, ok := kv.Value.(*String); ok {
 				c.DataFormat = str.Value
 			}
 		}
@@ -694,18 +701,18 @@ func buildParser(name string, tbl *Table) (parsers.Parser, error) {
 	}
 
 	if node, ok := tbl.Fields["separator"]; ok {
-		if kv, ok := node.(*ast.KeyValue); ok {
-			if str, ok := kv.Value.(*ast.String); ok {
+		if kv, ok := node.(*KeyValue); ok {
+			if str, ok := kv.Value.(*String); ok {
 				c.Separator = str.Value
 			}
 		}
 	}
 
 	if node, ok := tbl.Fields["templates"]; ok {
-		if kv, ok := node.(*ast.KeyValue); ok {
-			if ary, ok := kv.Value.(*ast.Array); ok {
+		if kv, ok := node.(*KeyValue); ok {
+			if ary, ok := kv.Value.(*Array); ok {
 				for _, elem := range ary.Value {
-					if str, ok := elem.(*ast.String); ok {
+					if str, ok := elem.(*String); ok {
 						c.Templates = append(c.Templates, str.Value)
 					}
 				}
@@ -714,10 +721,10 @@ func buildParser(name string, tbl *Table) (parsers.Parser, error) {
 	}
 
 	if node, ok := tbl.Fields["tag_keys"]; ok {
-		if kv, ok := node.(*ast.KeyValue); ok {
-			if ary, ok := kv.Value.(*ast.Array); ok {
+		if kv, ok := node.(*KeyValue); ok {
+			if ary, ok := kv.Value.(*Array); ok {
 				for _, elem := range ary.Value {
-					if str, ok := elem.(*ast.String); ok {
+					if str, ok := elem.(*String); ok {
 						c.TagKeys = append(c.TagKeys, str.Value)
 					}
 				}
@@ -726,34 +733,34 @@ func buildParser(name string, tbl *Table) (parsers.Parser, error) {
 	}
 
 	if node, ok := tbl.Fields["data_type"]; ok {
-		if kv, ok := node.(*ast.KeyValue); ok {
-			if str, ok := kv.Value.(*ast.String); ok {
+		if kv, ok := node.(*KeyValue); ok {
+			if str, ok := kv.Value.(*String); ok {
 				c.DataType = str.Value
 			}
 		}
 	}
 
 	if node, ok := tbl.Fields["collectd_auth_file"]; ok {
-		if kv, ok := node.(*ast.KeyValue); ok {
-			if str, ok := kv.Value.(*ast.String); ok {
+		if kv, ok := node.(*KeyValue); ok {
+			if str, ok := kv.Value.(*String); ok {
 				c.CollectdAuthFile = str.Value
 			}
 		}
 	}
 
 	if node, ok := tbl.Fields["collectd_security_level"]; ok {
-		if kv, ok := node.(*ast.KeyValue); ok {
-			if str, ok := kv.Value.(*ast.String); ok {
+		if kv, ok := node.(*KeyValue); ok {
+			if str, ok := kv.Value.(*String); ok {
 				c.CollectdSecurityLevel = str.Value
 			}
 		}
 	}
 
 	if node, ok := tbl.Fields["collectd_typesdb"]; ok {
-		if kv, ok := node.(*ast.KeyValue); ok {
-			if ary, ok := kv.Value.(*ast.Array); ok {
+		if kv, ok := node.(*KeyValue); ok {
+			if ary, ok := kv.Value.(*Array); ok {
 				for _, elem := range ary.Value {
-					if str, ok := elem.(*ast.String); ok {
+					if str, ok := elem.(*String); ok {
 						c.CollectdTypesDB = append(c.CollectdTypesDB, str.Value)
 					}
 				}
@@ -772,5 +779,64 @@ func buildParser(name string, tbl *Table) (parsers.Parser, error) {
 	delete(tbl.Fields, "collectd_security_level")
 	delete(tbl.Fields, "collectd_typesdb")
 
-	return parsers.NewParser(c)
+	return NewParser(c)
+}
+
+// buildInput parses input specific items from the ast.Table,
+// builds the filter and returns a
+// models.InputConfig to be inserted into models.RunningInput
+func buildInput(name string, tbl *Table) (*InputConfig, error) {
+	cp := &InputConfig{Name: name}
+	if node, ok := tbl.Fields["interval"]; ok {
+		if kv, ok := node.(*KeyValue); ok {
+			if str, ok := kv.Value.(*String); ok {
+				dur, err := time.ParseDuration(str.Value)
+				if err != nil {
+					return nil, err
+				}
+
+				cp.Interval = dur
+			}
+		}
+	}
+
+	if node, ok := tbl.Fields["name_prefix"]; ok {
+		if kv, ok := node.(*KeyValue); ok {
+			if str, ok := kv.Value.(*String); ok {
+				cp.MeasurementPrefix = str.Value
+			}
+		}
+	}
+
+	if node, ok := tbl.Fields["name_suffix"]; ok {
+		if kv, ok := node.(*KeyValue); ok {
+			if str, ok := kv.Value.(*String); ok {
+				cp.MeasurementSuffix = str.Value
+			}
+		}
+	}
+
+	if node, ok := tbl.Fields["name_override"]; ok {
+		if kv, ok := node.(*KeyValue); ok {
+			if str, ok := kv.Value.(*String); ok {
+				cp.NameOverride = str.Value
+			}
+		}
+	}
+
+	cp.Tags = make(map[string]string)
+	if node, ok := tbl.Fields["tags"]; ok {
+		if subtbl, ok := node.(*Table); ok {
+			if err := UnmarshalTable(subtbl, cp.Tags); err != nil {
+				log.Printf("E! Could not parse tags for input %s\n", name)
+			}
+		}
+	}
+
+	delete(tbl.Fields, "name_prefix")
+	delete(tbl.Fields, "name_suffix")
+	delete(tbl.Fields, "name_override")
+	delete(tbl.Fields, "interval")
+	delete(tbl.Fields, "tags")
+	return cp, nil
 }

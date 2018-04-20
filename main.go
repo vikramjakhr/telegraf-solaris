@@ -89,6 +89,8 @@ func init() {
 	})
 }
 
+var stop chan struct{}
+
 func main() {
 	flag.Usage = func() { usageExit(0) }
 	flag.Parse()
@@ -132,6 +134,9 @@ func main() {
 		return
 	}
 
+	stop = make(chan struct{})
+	reloadLoop(stop)
+
 }
 
 func reloadLoop(
@@ -139,6 +144,7 @@ func reloadLoop(
 ) {
 	reload := make(chan bool, 1)
 	reload <- true
+	fmt.Println("starteddddddddddddddddddd")
 	for <-reload {
 		reload <- false
 
@@ -152,6 +158,8 @@ func reloadLoop(
 		if len(Inputs) == 0 {
 			log.Fatalf("E! Error: no inputs found, did you provide a valid config file?")
 		}
+
+		fmt.Println("wooooooooooooooooooooo")
 
 		if int64(c.Agent.Interval.Duration) <= 0 {
 			log.Fatalf("E! Agent interval must be positive, found %s",

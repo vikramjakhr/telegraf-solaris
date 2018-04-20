@@ -22,5 +22,5 @@ type Output interface {
 	// SampleConfig returns the default configuration of the Output
 	SampleConfig() string
 	// Write takes in group of points to be written to the Output
-	Write() error
+	Write(metrics []Metric) error
 }
