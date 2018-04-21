@@ -5,6 +5,8 @@ import (
 	"os"
 	"runtime"
 	"time"
+	"sync"
+	"fmt"
 )
 
 // Agent runs telegraf and collects data based on the given config
@@ -81,30 +83,15 @@ func (a *Agent) gatherer(
 	shutdown chan struct{},
 	input *RunningInput,
 	interval time.Duration,
-	//metricC chan telegraf.Metric,
+//metricC chan telegraf.Metric,
 ) {
 	defer panicRecover(input)
-
-	/*GatherTime := selfstat.RegisterTiming("gather",
-		"gather_time_ns",
-		map[string]string{"input": input.Config.Name},
-	)
-
-	acc := NewAccumulator(input, metricC)
-	acc.SetPrecision(a.Config.Agent.Precision.Duration,
-		a.Config.Agent.Interval.Duration)
 
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	for {
-		internal.RandomSleep(a.Config.Agent.CollectionJitter.Duration, shutdown)
-
-		start := time.Now()
-		gatherWithTimeout(shutdown, input, acc, interval)
-		elapsed := time.Since(start)
-
-		GatherTime.Incr(elapsed.Nanoseconds())
+		gatherWithTimeout(shutdown, input, interval)
 
 		select {
 		case <-shutdown:
@@ -112,7 +99,7 @@ func (a *Agent) gatherer(
 		case <-ticker.C:
 			continue
 		}
-	}*/
+	}
 }
 
 // gatherWithTimeout gathers from the given input, with the given timeout.
@@ -120,36 +107,35 @@ func (a *Agent) gatherer(
 //   but continues waiting for it to return. This is to avoid leaving behind
 //   hung processes, and to prevent re-calling the same hung process over and
 //   over.
-/*func gatherWithTimeout(
+func gatherWithTimeout(
 	shutdown chan struct{},
-	input *models.RunningInput,
-	acc *accumulator,
+	input *RunningInput,
 	timeout time.Duration,
 ) {
 	ticker := time.NewTicker(timeout)
 	defer ticker.Stop()
 	done := make(chan error)
 	go func() {
-		done <- input.Input.Gather(acc)
+		done <- input.Input.Gather()
 	}()
 
 	for {
 		select {
 		case err := <-done:
 			if err != nil {
-				acc.AddError(err)
+				fmt.Errorf("Error while collecting metrics, %v", err)
 			}
 			return
 		case <-ticker.C:
-			err := fmt.Errorf("took longer to collect than collection interval (%s)",
+			fmt.Errorf("took longer to collect than collection interval (%s)",
 				timeout)
-			acc.AddError(err)
 			continue
 		case <-shutdown:
 			return
 		}
 	}
-}*/
+}
+
 /*
 // flush writes a list of metrics to all configured outputs
 func (a *Agent) flush() {
@@ -172,15 +158,11 @@ func (a *Agent) flush() {
 
 // Run runs the agent daemon, gathering every Interval
 func (a *Agent) Run(shutdown chan struct{}) error {
-	// TODO
-	/*var wg sync.WaitGroup
+	var wg sync.WaitGroup
 
 	log.Printf("I! Agent Config: Interval:%s, Hostname:%#v, \n",
 		a.Config.Agent.Interval.Duration,
 		a.Config.Agent.Hostname)
-
-	// channel shared between all input threads for accumulating metrics
-	metricC := make(chan telegraf.Metric, 100)
 
 	wg.Add(len(a.Config.Inputs))
 	for _, input := range a.Config.Inputs {
@@ -191,11 +173,11 @@ func (a *Agent) Run(shutdown chan struct{}) error {
 		}
 		go func(in *RunningInput, interv time.Duration) {
 			defer wg.Done()
-			a.gatherer(shutdown, in, interv, metricC)
+			a.gatherer(shutdown, in, interv)
 		}(input, interval)
 	}
 
 	wg.Wait()
-	a.Close()*/
+	a.Close()
 	return nil
 }
