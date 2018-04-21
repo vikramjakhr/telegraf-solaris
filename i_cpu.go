@@ -1,6 +1,12 @@
 package main
 
-import ()
+import (
+	"fmt"
+	"os/exec"
+	"os"
+	"strings"
+	"strconv"
+)
 
 type CPUStats struct {
 	ps             PS
@@ -38,5 +44,23 @@ func (_ *CPUStats) SampleConfig() string {
 }
 
 func (s *CPUStats) Gather() error {
+	fmt.Println("collecting cpu data...")
+	output, err := exec.Command("vmstat", "-S").CombinedOutput()
+	if err != nil {
+		os.Stderr.WriteString(err.Error())
+	}
+	stats := string(output)
+	rows := strings.Split(stats, "\n")
+	rows = rows[1:]
+	data := make(map[string]float64)
+	headers := strings.Fields(rows[0])
+	values := strings.Fields(rows[1])
+	for count := 0; count < len(headers); count++ {
+		v, _ := strconv.ParseFloat(values[count], 64)
+		data[headers[count]] = v
+	}
+	fmt.Printf("usage_idle: %.2f\n", data["id"])
+	fmt.Printf("usage_system: %.2f\n", data["sy"])
+	fmt.Printf("usage_user: %.2f\n", data["us"])
 	return nil
 }
