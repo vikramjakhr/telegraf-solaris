@@ -16,15 +16,16 @@ const (
 
 // RunningOutput contains the output configuration
 type RunningOutput struct {
-	Name   string
-	Output Output
-	Config *OutputConfig
+	Name              string
+	Output            Output
+	Config            *OutputConfig
 	MetricBufferLimit int
 	MetricBatchSize   int
 
-	MetricsWritten  Stat
-	BufferSize      Stat
-	WriteTime       Stat
+	MetricsWritten Stat
+	BufferSize     Stat
+	BufferLimit    Stat
+	WriteTime      Stat
 
 	metrics     *Buffer
 	failMetrics *Buffer
@@ -37,12 +38,45 @@ func NewRunningOutput(
 	name string,
 	output Output,
 	conf *OutputConfig,
+	batchSize int,
+	bufferLimit int,
 ) *RunningOutput {
-	ro := &RunningOutput{
-		Name:   name,
-		Output: output,
-		Config: conf,
+	if bufferLimit == 0 {
+		bufferLimit = DEFAULT_METRIC_BUFFER_LIMIT
 	}
+	if batchSize == 0 {
+		batchSize = DEFAULT_METRIC_BATCH_SIZE
+	}
+	ro := &RunningOutput{
+		Name:              name,
+		metrics:           NewBuffer(batchSize),
+		failMetrics:       NewBuffer(bufferLimit),
+		Output:            output,
+		Config:            conf,
+		MetricBufferLimit: bufferLimit,
+		MetricBatchSize:   batchSize,
+		MetricsWritten: Register(
+			"write",
+			"metrics_written",
+			map[string]string{"output": name},
+		),
+		BufferSize: Register(
+			"write",
+			"buffer_size",
+			map[string]string{"output": name},
+		),
+		BufferLimit: Register(
+			"write",
+			"buffer_limit",
+			map[string]string{"output": name},
+		),
+		WriteTime: RegisterTiming(
+			"write",
+			"write_time_ns",
+			map[string]string{"output": name},
+		),
+	}
+	ro.BufferLimit.Incr(int64(ro.MetricBufferLimit))
 	return ro
 }
 

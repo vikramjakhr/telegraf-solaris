@@ -419,7 +419,8 @@ func (c *Config) addOutput(name string, table *Table) error {
 		return err
 	}
 
-	ro := NewRunningOutput(name, output, outputConfig)
+	ro := NewRunningOutput(name, output, outputConfig,
+		c.Agent.MetricBatchSize, c.Agent.MetricBufferLimit)
 	c.Outputs = append(c.Outputs, ro)
 	return nil
 }

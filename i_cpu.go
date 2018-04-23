@@ -1,11 +1,12 @@
 package main
 
 import (
-	"fmt"
 	"os/exec"
 	"os"
 	"strings"
 	"strconv"
+	"time"
+	"log"
 )
 
 type CPUStats struct {
@@ -44,11 +45,14 @@ func (_ *CPUStats) SampleConfig() string {
 }
 
 func (s *CPUStats) Gather(acc Accumulator) error {
-	fmt.Println("collecting cpu data...")
+	log.Println("collecting cpu data...")
 	output, err := exec.Command("vmstat", "-S").CombinedOutput()
 	if err != nil {
 		os.Stderr.WriteString(err.Error())
 	}
+
+	now := time.Now()
+
 	stats := string(output)
 	rows := strings.Split(stats, "\n")
 	rows = rows[1:]
@@ -59,8 +63,19 @@ func (s *CPUStats) Gather(acc Accumulator) error {
 		v, _ := strconv.ParseFloat(values[count], 64)
 		data[headers[count]] = v
 	}
-	fmt.Printf("usage_idle: %.2f\n", data["id"])
-	fmt.Printf("usage_system: %.2f\n", data["sy"])
-	fmt.Printf("usage_user: %.2f\n", data["us"])
+
+	tags := map[string]string{
+		"cpu": "cpu-total",
+	}
+
+	fieldsC := map[string]interface{}{
+		"usage_idle":       data["id"],
+		"usage_system":     data["sy"],
+		"usage_user":       data["us"],
+	}
+
+	acc.AddCounter("cpu", fieldsC, tags, now)
+
+	log.Printf("cpu matrix collection done")
 	return nil
 }
