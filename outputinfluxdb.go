@@ -242,7 +242,3 @@ func newInflux() *InfluxDB {
 	}
 }
 
-func init() {
-	AddOutput("influxdb", func() Output { return newInflux() })
-}
-

@@ -28,6 +28,9 @@ var fUsage = flag.String("usage", "",
 
 var (
 	nextVersion = "1.5.0"
+	version     string
+	commit      string
+	branch      string
 )
 
 const usage = `Telegraf, The plugin-driven server agent for collecting and reporting metrics.
@@ -82,6 +85,20 @@ func displayVersion() string {
 }
 
 func init() {
+	// If commit or branch are not set, make that clear.
+	if commit == "" {
+		commit = "unknown"
+	}
+	if branch == "" {
+		branch = "unknown"
+	}
+
+	registry = &rgstry{
+		stats: make(map[uint64]map[string]Stat),
+	}
+
+	RegisterAllInit()
+
 	AddInput("cpu", func() Input {
 		return &CPUStats{
 			PerCPU:   true,
@@ -89,6 +106,15 @@ func init() {
 			ps:       nil,
 		}
 	})
+
+	AddOutput("influxdb", func() Output { return newInflux() })
+}
+
+func RegisterAllInit() {
+	NErrors = Register("agent", "gather_errors", map[string]string{})
+	MetricsWritten = Register("agent", "metrics_written", map[string]string{})
+	MetricsDropped = Register("agent", "metrics_dropped", map[string]string{})
+	GlobalMetricsGathered = Register("agent", "metrics_gathered", map[string]string{})
 }
 
 var stop chan struct{}
