@@ -43,7 +43,7 @@ func (_ *CPUStats) SampleConfig() string {
 	return sampleConfig
 }
 
-func (s *CPUStats) Gather() error {
+func (s *CPUStats) Gather(acc Accumulator) error {
 	fmt.Println("collecting cpu data...")
 	output, err := exec.Command("vmstat", "-S").CombinedOutput()
 	if err != nil {

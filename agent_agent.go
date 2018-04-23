@@ -83,15 +83,30 @@ func (a *Agent) gatherer(
 	shutdown chan struct{},
 	input *RunningInput,
 	interval time.Duration,
-//metricC chan telegraf.Metric,
+	metricC chan Metric,
 ) {
 	defer panicRecover(input)
+
+	GatherTime := RegisterTiming("gather",
+		"gather_time_ns",
+		map[string]string{"input": input.Config.Name},
+	)
+
+	acc := NewAccumulator(input, metricC)
+	acc.SetPrecision(a.Config.Agent.Precision.Duration,
+		a.Config.Agent.Interval.Duration)
 
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	for {
-		gatherWithTimeout(shutdown, input, interval)
+		RandomSleep(a.Config.Agent.CollectionJitter.Duration, shutdown)
+
+		start := time.Now()
+		gatherWithTimeout(shutdown, input, acc, interval)
+		elapsed := time.Since(start)
+
+		GatherTime.Incr(elapsed.Nanoseconds())
 
 		select {
 		case <-shutdown:
@@ -110,33 +125,33 @@ func (a *Agent) gatherer(
 func gatherWithTimeout(
 	shutdown chan struct{},
 	input *RunningInput,
+	acc *accumulator,
 	timeout time.Duration,
 ) {
 	ticker := time.NewTicker(timeout)
 	defer ticker.Stop()
 	done := make(chan error)
 	go func() {
-		done <- input.Input.Gather()
+		done <- input.Input.Gather(acc)
 	}()
 
 	for {
 		select {
 		case err := <-done:
 			if err != nil {
-				fmt.Errorf("Error while collecting metrics, %v", err)
+				acc.AddError(err)
 			}
 			return
 		case <-ticker.C:
-			fmt.Errorf("took longer to collect than collection interval (%s)",
+			err := fmt.Errorf("took longer to collect than collection interval (%s)",
 				timeout)
+			acc.AddError(err)
 			continue
 		case <-shutdown:
 			return
 		}
 	}
 }
-
-/*
 // flush writes a list of metrics to all configured outputs
 func (a *Agent) flush() {
 	var wg sync.WaitGroup
@@ -154,7 +169,7 @@ func (a *Agent) flush() {
 	}
 
 	wg.Wait()
-}*/
+}
 
 // Run runs the agent daemon, gathering every Interval
 func (a *Agent) Run(shutdown chan struct{}) error {
@@ -163,6 +178,25 @@ func (a *Agent) Run(shutdown chan struct{}) error {
 	log.Printf("I! Agent Config: Interval:%s, Hostname:%#v, \n",
 		a.Config.Agent.Interval.Duration,
 		a.Config.Agent.Hostname)
+
+	// channel shared between all input threads for accumulating metrics
+	metricC := make(chan Metric, 100)
+	aggC := make(chan Metric, 100)
+
+	// Round collection to nearest interval by sleeping
+	if a.Config.Agent.RoundInterval {
+		i := int64(a.Config.Agent.Interval.Duration)
+		time.Sleep(time.Duration(i - (time.Now().UnixNano() % i)))
+	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := a.flusher(shutdown, metricC, aggC); err != nil {
+			log.Printf("E! Flusher routine failed, exiting: %s\n", err.Error())
+			close(shutdown)
+		}
+	}()
 
 	wg.Add(len(a.Config.Inputs))
 	for _, input := range a.Config.Inputs {
@@ -173,11 +207,109 @@ func (a *Agent) Run(shutdown chan struct{}) error {
 		}
 		go func(in *RunningInput, interv time.Duration) {
 			defer wg.Done()
-			a.gatherer(shutdown, in, interv)
+			a.gatherer(shutdown, in, interv, metricC)
 		}(input, interval)
 	}
 
 	wg.Wait()
 	a.Close()
 	return nil
+}
+
+// flusher monitors the metrics input channel and flushes on the minimum interval
+func (a *Agent) flusher(shutdown chan struct{}, metricC chan Metric, aggC chan Metric) error {
+	// Inelegant, but this sleep is to allow the Gather threads to run, so that
+	// the flusher will flush after metrics are collected.
+	time.Sleep(time.Millisecond * 300)
+
+	// create an output metric channel and a gorouting that continuously passes
+	// each metric onto the output plugins & aggregators.
+	outMetricC := make(chan Metric, 100)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-shutdown:
+				if len(outMetricC) > 0 {
+					// keep going until outMetricC is flushed
+					continue
+				}
+				return
+			case m := <-outMetricC:
+				// if dropOriginal is set to true, then we will only send this
+				// metric to the aggregators, not the outputs.
+				var dropOriginal bool
+				if !dropOriginal {
+					for i, o := range a.Config.Outputs {
+						if i == len(a.Config.Outputs)-1 {
+							o.AddMetric(m)
+						} else {
+							o.AddMetric(m.Copy())
+						}
+					}
+				}
+			}
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-shutdown:
+				if len(aggC) > 0 {
+					// keep going until aggC is flushed
+					continue
+				}
+				return
+			case metric := <-aggC:
+				metrics := []Metric{metric}
+				for _, m := range metrics {
+					for i, o := range a.Config.Outputs {
+						if i == len(a.Config.Outputs)-1 {
+							o.AddMetric(m)
+						} else {
+							o.AddMetric(m.Copy())
+						}
+					}
+				}
+			}
+		}
+	}()
+
+	ticker := time.NewTicker(a.Config.Agent.FlushInterval.Duration)
+	semaphore := make(chan struct{}, 1)
+	for {
+		select {
+		case <-shutdown:
+			log.Println("I! Hang on, flushing any cached metrics before shutdown")
+			// wait for outMetricC to get flushed before flushing outputs
+			wg.Wait()
+			a.flush()
+			return nil
+		case <-ticker.C:
+			go func() {
+				select {
+				case semaphore <- struct{}{}:
+					RandomSleep(a.Config.Agent.FlushJitter.Duration, shutdown)
+					a.flush()
+					<-semaphore
+				default:
+					// skipping this flush because one is already happening
+					log.Println("W! Skipping a scheduled flush because there is" +
+						" already a flush ongoing.")
+				}
+			}()
+		case metric := <-metricC:
+			// NOTE potential bottleneck here as we put each metric through the
+			// processors serially.
+			mS := []Metric{metric}
+			for _, m := range mS {
+				outMetricC <- m
+			}
+		}
+	}
 }

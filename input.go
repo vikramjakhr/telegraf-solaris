@@ -9,7 +9,7 @@ type Input interface {
 
 	// Gather takes in an accumulator and adds the metrics that the Input
 	// gathers. This is called every "interval"
-	Gather() error
+	Gather(Accumulator) error
 }
 
 type Output interface {
