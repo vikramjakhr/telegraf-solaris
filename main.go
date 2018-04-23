@@ -13,10 +13,12 @@ import (
 
 var fDebug = flag.Bool("debug", false,
 	"turn on debug logging")
+var fTest = flag.Bool("test", false, "gather metrics, print them out, and exit")
 var fConfig = flag.String("config", "", "configuration file to load")
 var fVersion = flag.Bool("version", false, "display the version")
 var fSampleConfig = flag.Bool("sample-config", false,
 	"print out full sample configuration")
+var fPidfile = flag.String("pidfile", "", "file to write our pid to")
 var fInputList = flag.Bool("input-list", false,
 	"print available input plugins.")
 var fOutputList = flag.Bool("output-list", false,
@@ -144,7 +146,6 @@ func reloadLoop(
 ) {
 	reload := make(chan bool, 1)
 	reload <- true
-	fmt.Println("starteddddddddddddddddddd")
 	for <-reload {
 		reload <- false
 
@@ -155,11 +156,12 @@ func reloadLoop(
 			log.Fatal("E! " + err.Error())
 		}
 
+		if !*fTest && len(c.Outputs) == 0 {
+			log.Fatalf("E! Error: no outputs found, did you provide a valid config file?")
+		}
 		if len(Inputs) == 0 {
 			log.Fatalf("E! Error: no inputs found, did you provide a valid config file?")
 		}
-
-		fmt.Println("wooooooooooooooooooooo")
 
 		if int64(c.Agent.Interval.Duration) <= 0 {
 			log.Fatalf("E! Agent interval must be positive, found %s",
@@ -200,6 +202,24 @@ func reloadLoop(
 		log.Printf("I! Loaded outputs: %s", strings.Join(c.OutputNames(), " "))
 		log.Printf("I! Loaded inputs: %s", strings.Join(c.InputNames(), " "))
 		log.Printf("I! Tags enabled: %s", c.ListTags())
+
+		if *fPidfile != "" {
+			f, err := os.OpenFile(*fPidfile, os.O_CREATE|os.O_WRONLY, 0644)
+			if err != nil {
+				log.Printf("E! Unable to create pidfile: %s", err)
+			} else {
+				fmt.Fprintf(f, "%d\n", os.Getpid())
+
+				f.Close()
+
+				defer func() {
+					err := os.Remove(*fPidfile)
+					if err != nil {
+						log.Printf("E! Unable to remove pidfile: %s", err)
+					}
+				}()
+			}
+		}
 
 		ag.Run(shutdown)
 	}

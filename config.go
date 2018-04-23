@@ -52,7 +52,9 @@ func NewConfig() *Config {
 	c := &Config{
 		// Agent defaults:
 		Agent: &AgentConfig{
-			Interval: Duration{Duration: 10 * time.Second},
+			Interval:      Duration{Duration: 10 * time.Second},
+			RoundInterval: true,
+			FlushInterval: Duration{Duration: 10 * time.Second},
 		},
 
 		Tags:          make(map[string]string),
@@ -68,19 +70,19 @@ type AgentConfig struct {
 	// Interval at which to gather information
 	Interval Duration
 
-	RoundInterval bool
-	Precision Duration
-	CollectionJitter Duration
-	FlushInterval Duration
-	FlushJitter Duration
-	MetricBatchSize int
-	MetricBufferLimit int
+	RoundInterval       bool
+	Precision           Duration
+	CollectionJitter    Duration
+	FlushInterval       Duration
+	FlushJitter         Duration
+	MetricBatchSize     int
+	MetricBufferLimit   int
 	FlushBufferWhenFull bool
-	UTC bool `toml:"utc"`
-	Debug bool
-	Logfile      string
-	Hostname     string
-	OmitHostname bool
+	UTC                 bool `toml:"utc"`
+	Debug               bool
+	Logfile             string
+	Hostname            string
+	OmitHostname        bool
 }
 
 // Inputs returns a list of strings of the configured inputs.
