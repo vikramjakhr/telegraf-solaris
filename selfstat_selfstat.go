@@ -11,7 +11,6 @@ import (
 	"sort"
 	"sync"
 	"time"
-	"fmt"
 )
 
 var (
