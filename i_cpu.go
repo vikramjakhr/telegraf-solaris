@@ -45,7 +45,6 @@ func (_ *CPUStats) SampleConfig() string {
 }
 
 func (s *CPUStats) Gather(acc Accumulator) error {
-	log.Println("collecting cpu data...")
 	output, err := exec.Command("vmstat", "-S").CombinedOutput()
 	if err != nil {
 		os.Stderr.WriteString(err.Error())
@@ -69,13 +68,11 @@ func (s *CPUStats) Gather(acc Accumulator) error {
 	}
 
 	fieldsC := map[string]interface{}{
-		"usage_idle":       data["id"],
-		"usage_system":     data["sy"],
-		"usage_user":       data["us"],
+		"usage_idle":   data["id"],
+		"usage_system": data["sy"],
+		"usage_user":   data["us"],
 	}
 
 	acc.AddCounter("cpu", fieldsC, tags, now)
-
-	log.Printf("cpu matrix collection done")
 	return nil
 }
