@@ -6,7 +6,6 @@ import (
 	"strings"
 	"strconv"
 	"time"
-	"log"
 )
 
 type CPUStats struct {
