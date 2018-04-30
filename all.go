@@ -1,5 +1,8 @@
 package main
 
+import (
+)
+
 func InitAllInputs() {
 	AddInput("cpu", func() Input {
 		return &CPUStats{
@@ -7,6 +10,10 @@ func InitAllInputs() {
 			TotalCPU: true,
 			ps:       nil,
 		}
+	})
+
+	AddInput("mem", func() Input {
+		return &MemStats{ps: nil}
 	})
 }
 
