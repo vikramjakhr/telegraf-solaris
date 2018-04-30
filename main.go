@@ -99,15 +99,10 @@ func init() {
 
 	RegisterAllInit()
 
-	AddInput("cpu", func() Input {
-		return &CPUStats{
-			PerCPU:   true,
-			TotalCPU: true,
-			ps:       nil,
-		}
-	})
+	InitAllInputs()
 
-	AddOutput("influxdb", func() Output { return newInflux() })
+	InitAllOutputs()
+
 }
 
 func RegisterAllInit() {
