@@ -1,8 +1,5 @@
 package main
 
-import (
-)
-
 func InitAllInputs() {
 	AddInput("cpu", func() Input {
 		return &CPUStats{
@@ -18,6 +15,10 @@ func InitAllInputs() {
 
 	AddInput("disk", func() Input {
 		return &DiskStats{ps: nil}
+	})
+
+	AddInput("http_response", func() Input {
+		return &HTTPResponse{}
 	})
 }
 
