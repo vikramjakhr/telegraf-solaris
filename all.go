@@ -20,6 +20,10 @@ func InitAllInputs() {
 	AddInput("http_response", func() Input {
 		return &HTTPResponse{}
 	})
+
+	AddInput("apache", func() Input {
+		return &Apache{}
+	})
 }
 
 func InitAllOutputs() {
