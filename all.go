@@ -24,6 +24,15 @@ func InitAllInputs() {
 	AddInput("apache", func() Input {
 		return &Apache{}
 	})
+
+	AddInput("ping", func() Input {
+		return &Ping{
+			pingHost:     hostPinger,
+			PingInterval: 1.0,
+			Count:        1,
+			Timeout:      1.0,
+		}
+	})
 }
 
 func InitAllOutputs() {
