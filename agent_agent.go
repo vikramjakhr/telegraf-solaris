@@ -200,6 +200,7 @@ func (a *Agent) Run(shutdown chan struct{}) error {
 
 	wg.Add(len(a.Config.Inputs))
 	for _, input := range a.Config.Inputs {
+		input.SetDefaultTags(a.Config.Tags)
 		interval := a.Config.Agent.Interval.Duration
 		// overwrite global interval if this plugin has it's own.
 		if input.Config.Interval != 0 {
