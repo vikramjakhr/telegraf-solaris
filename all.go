@@ -54,6 +54,12 @@ func InitAllInputs() {
 			client: &RealHTTPClient{},
 		}
 	})
+
+	AddInput("jboss4", func() Input {
+		return &JBoss4{
+			client: &RealHTTPClient{},
+		}
+	})
 }
 
 func InitAllOutputs() {
