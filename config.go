@@ -85,24 +85,6 @@ type AgentConfig struct {
 	OmitHostname        bool
 }
 
-// Inputs returns a list of strings of the configured inputs.
-/*func (c *Config) InputNames() []string {
-	var name []string
-	for _, input := range c.Inputs {
-		name = append(name, input.Name())
-	}
-	return name
-}
-
-// Outputs returns a list of strings of the configured outputs.
-func (c *Config) OutputNames() []string {
-	var name []string
-	for _, output := range c.Outputs {
-		name = append(name, output.Name)
-	}
-	return name
-}*/
-
 // ListTags returns a string of tags specified in the config,
 // line-protocol style
 func (c *Config) ListTags() string {
