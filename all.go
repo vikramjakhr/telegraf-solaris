@@ -33,6 +33,10 @@ func InitAllInputs() {
 			Timeout:      1.0,
 		}
 	})
+
+	AddInput("net_response", func() Input {
+		return &NetResponse{}
+	})
 }
 
 func InitAllOutputs() {
