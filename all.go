@@ -1,5 +1,7 @@
 package main
 
+import "time"
+
 func InitAllInputs() {
 	AddInput("cpu", func() Input {
 		return &CPUStats{
@@ -36,6 +38,15 @@ func InitAllInputs() {
 
 	AddInput("net_response", func() Input {
 		return &NetResponse{}
+	})
+
+	AddInput("tomcat", func() Input {
+		return &Tomcat{
+			URL:      "http://127.0.0.1:8080/manager/status/all?XML=true",
+			Username: "tomcat",
+			Password: "s3cret",
+			Timeout:  Duration{Duration: 5 * time.Second},
+		}
 	})
 }
 
