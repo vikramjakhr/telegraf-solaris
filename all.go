@@ -48,6 +48,12 @@ func InitAllInputs() {
 			Timeout:  Duration{Duration: 5 * time.Second},
 		}
 	})
+
+	AddInput("jboss", func() Input {
+		return &JBoss{
+			client: &RealHTTPClient{},
+		}
+	})
 }
 
 func InitAllOutputs() {
