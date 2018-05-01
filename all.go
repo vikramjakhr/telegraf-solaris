@@ -60,6 +60,10 @@ func InitAllInputs() {
 			client: &RealHTTPClient{},
 		}
 	})
+
+	AddInput("system", func() Input {
+		return &SystemStats{}
+	})
 }
 
 func InitAllOutputs() {
