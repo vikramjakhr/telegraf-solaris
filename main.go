@@ -13,6 +13,8 @@ import (
 
 var fDebug = flag.Bool("debug", false,
 	"turn on debug logging")
+var fQuiet = flag.Bool("quiet", false,
+	"run in quiet mode")
 var fTest = flag.Bool("test", false, "gather metrics, print them out, and exit")
 var fConfig = flag.String("config", "", "configuration file to load")
 var fVersion = flag.Bool("version", false, "display the version")
@@ -91,6 +93,12 @@ func init() {
 	}
 	if branch == "" {
 		branch = "unknown"
+	}
+
+	// logger initialization
+	ReverseLevels = make(map[Level]byte, len(Levels))
+	for k, l := range Levels {
+		ReverseLevels[l] = k
 	}
 
 	registry = &rgstry{
@@ -193,6 +201,13 @@ func reloadLoop(
 		if err != nil {
 			log.Fatal("E! " + err.Error())
 		}
+
+		// Setup logging
+		SetupLogging(
+			ag.Config.Agent.Debug || *fDebug,
+			ag.Config.Agent.Quiet || *fQuiet,
+			ag.Config.Agent.Logfile,
+		)
 
 		err = ag.Connect()
 		if err != nil {
