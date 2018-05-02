@@ -81,6 +81,7 @@ type AgentConfig struct {
 	UTC                 bool `toml:"utc"`
 	Debug               bool
 	Logfile             string
+	Quiet               bool
 	Hostname            string
 	OmitHostname        bool
 }
