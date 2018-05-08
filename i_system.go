@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"os/exec"
-	"os"
 	"strconv"
 	"time"
 	"runtime"
@@ -24,7 +23,7 @@ func (_ *SystemStats) SampleConfig() string { return "" }
 func (_ *SystemStats) Gather(acc Accumulator) error {
 	output, err := exec.Command("uptime").CombinedOutput()
 	if err != nil {
-		os.Stderr.WriteString(err.Error())
+		return fmt.Errorf("error getting System info: %s", err.Error())
 	}
 
 	stats := string(output)

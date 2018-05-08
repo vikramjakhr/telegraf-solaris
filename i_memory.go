@@ -5,9 +5,9 @@ import (
 	"os/exec"
 	"strconv"
 	"errors"
-	"os"
 	"time"
 	"strings"
+	"fmt"
 )
 
 type MemStats struct {
@@ -56,7 +56,7 @@ func (s *MemStats) Gather(acc Accumulator) error {
 
 	output, err := exec.Command("vmstat", "-S").CombinedOutput()
 	if err != nil {
-		os.Stderr.WriteString(err.Error())
+		return fmt.Errorf("error getting Memory info: %s", err.Error())
 	}
 
 	stats := string(output)
