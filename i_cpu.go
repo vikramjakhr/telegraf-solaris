@@ -2,10 +2,10 @@ package main
 
 import (
 	"os/exec"
-	"os"
 	"strings"
 	"strconv"
 	"time"
+	"fmt"
 )
 
 type CPUStats struct {
@@ -46,7 +46,7 @@ func (_ *CPUStats) SampleConfig() string {
 func (s *CPUStats) Gather(acc Accumulator) error {
 	output, err := exec.Command("vmstat", "-S").CombinedOutput()
 	if err != nil {
-		os.Stderr.WriteString(err.Error())
+		return fmt.Errorf("error getting CPU info: %s", err.Error())
 	}
 
 	now := time.Now()

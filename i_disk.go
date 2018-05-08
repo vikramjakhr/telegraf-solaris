@@ -2,10 +2,10 @@ package main
 
 import (
 	"os/exec"
-	"os"
 	"strings"
 	"strconv"
 	"time"
+	"fmt"
 )
 
 type DiskStats struct {
@@ -39,7 +39,7 @@ func (_ *DiskStats) SampleConfig() string {
 func (s *DiskStats) Gather(acc Accumulator) error {
 	output, err := exec.Command("df", "-k").CombinedOutput()
 	if err != nil {
-		os.Stderr.WriteString(err.Error())
+		return fmt.Errorf("error getting Disk info: %s", err.Error())
 	}
 
 	now := time.Now()

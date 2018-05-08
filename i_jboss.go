@@ -263,7 +263,7 @@ func (h *JBoss) checkAuth(host string, uri string) error {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusUnauthorized {
@@ -283,7 +283,7 @@ func (h *JBoss) checkAuth(host string, uri string) error {
 
 	resp, err = client.Do(req)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	defer resp.Body.Close()
 	log.Printf("D! JBoss HTTP response code: %d \n", resp.StatusCode)
@@ -291,7 +291,7 @@ func (h *JBoss) checkAuth(host string, uri string) error {
 	if resp.StatusCode != http.StatusOK {
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		log.Printf("D! JBoss HTTP response body: %s \n", string(body))
 		return nil
