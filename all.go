@@ -1,6 +1,8 @@
 package main
 
-import "time"
+import (
+	"time"
+)
 
 func InitAllInputs() {
 	AddInput("cpu", func() Input {
@@ -63,6 +65,10 @@ func InitAllInputs() {
 
 	AddInput("system", func() Input {
 		return &SystemStats{}
+	})
+
+	AddInput("netstat_connections", func() Input {
+		return &NetStatConnections{}
 	})
 }
 
