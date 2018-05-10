@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 	"runtime"
+	"log"
 )
 
 type SystemStats struct{}
@@ -27,6 +28,7 @@ func (_ *SystemStats) Gather(acc Accumulator) error {
 	}
 
 	stats := string(output)
+	log.Printf("D! Uptime Response: %s\n", stats)
 	rows := strings.Split(stats, "\n")
 
 	//values := strings.Fields(rows[0])
