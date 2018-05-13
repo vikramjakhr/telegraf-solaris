@@ -31,15 +31,13 @@ func (_ *SystemStats) Gather(acc Accumulator) error {
 	log.Printf("D! Uptime Response: %s\n", stats)
 	rows := strings.Split(stats, "\n")
 
-	//values := strings.Fields(rows[0])
 	uptimeOutput := strings.Split(rows[0], ",")
 
-	load1, err := strconv.ParseFloat(strings.Trim(uptimeOutput[3], "load average: "), 64)
-	load5, err := strconv.ParseFloat(strings.Trim(uptimeOutput[4], " "), 64)
-	load15, err := strconv.ParseFloat(strings.Trim(uptimeOutput[5], " "), 64)
-	users, err := strconv.ParseUint(strings.Trim(uptimeOutput[2], " users"), 10, 64)
+	load1, err := strconv.ParseFloat(strings.Trim(uptimeOutput[len(uptimeOutput)-3], "load average: "), 64)
+	load5, err := strconv.ParseFloat(strings.Trim(uptimeOutput[len(uptimeOutput)-2], " "), 64)
+	load15, err := strconv.ParseFloat(strings.Trim(uptimeOutput[len(uptimeOutput)-1], " "), 64)
+	users, err := strconv.ParseUint(strings.Trim(uptimeOutput[len(uptimeOutput)-4], " users"), 10, 64)
 	uptime, err := Uptime()
-
 
 	acc.AddGauge("system", map[string]interface{}{
 		"load1":   load1,
