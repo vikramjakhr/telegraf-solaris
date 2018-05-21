@@ -28,6 +28,7 @@ func (p *Processes) Gather(acc Accumulator) error {
 	return nil
 }
 
+// TODO: total_threads needs to be implemented
 // Gets empty fields of metrics based on the OS
 func getEmptyFields() map[string]interface{} {
 	fields := map[string]interface{}{
