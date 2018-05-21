@@ -70,6 +70,10 @@ func InitAllInputs() {
 	AddInput("netstat_connections", func() Input {
 		return &NetStatConnections{}
 	})
+
+	AddInput("processes", func() Input {
+		return &Processes{}
+	})
 }
 
 func InitAllOutputs() {
