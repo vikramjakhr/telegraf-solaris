@@ -48,64 +48,67 @@ func (_ *DiskIOStats) SampleConfig() string {
 }
 
 func (s *DiskIOStats) Gather(acc Accumulator) error {
-	output, err := exec.Command("iostat", "-d").CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("error getting DiskIO info: %s", err.Error())
+
+	var devices []string
+
+	if len(s.Devices) > 0 {
+		devices = s.Devices
+	} else {
+		output, err := exec.Command("iostat", "-d").CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("error getting DiskIO info: %s", err.Error())
+		}
+		devices = strings.Fields(strings.Split(string(output), "\n")[0])
 	}
-	devices := strings.Fields(strings.Split(string(output), "\n")[0])
 
-	if len(devices) > 0 {
-		for _, device := range devices {
-			if contains(s.Devices, device) {
-				output, err := exec.Command("kstat", "-p", fmt.Sprintf("*:*:%s:*", device)).CombinedOutput()
-				if err != nil {
-					return fmt.Errorf("error getting DiskIO (kstat) info: %s", err.Error())
-				}
-				s := string(output)
-				if s != "" {
-					fields := map[string]interface{}{}
-					tags := map[string]string{
-						"name": device,
-					}
-					stats := strings.Split(s, "\n")
-					stats = stats[0: len(stats)-1]
-					for _, row := range stats {
-						data := strings.Fields(row)
-						reg := regexp.MustCompile(".*:.*:.*:")
-						field := reg.ReplaceAllString(data[0], "${1}")
+	for _, device := range devices {
+		output, err := exec.Command("kstat", "-p", fmt.Sprintf("*:*:%s:*", device)).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("error getting DiskIO (kstat) info: %s", err.Error())
+		}
+		s := string(output)
+		if s != "" {
+			fields := map[string]interface{}{}
+			tags := map[string]string{
+				"name": device,
+			}
+			stats := strings.Split(s, "\n")
+			stats = stats[0: len(stats)-1]
+			for _, row := range stats {
+				data := strings.Fields(row)
+				reg := regexp.MustCompile(".*:.*:.*:")
+				field := reg.ReplaceAllString(data[0], "${1}")
 
-						switch field {
-						case "reads":
-							fields["reads"], _ = strconv.ParseInt(data[1], 10, 0)
-							break
-						case "writes":
-							fields["writes"], _ = strconv.ParseInt(data[1], 10, 0)
-							break
-						case "rtime":
-							f, _ := strconv.ParseFloat(data[1], 64)
-							fields["read_time"] = int(f)
-							break
-						case "wtime":
-							f, _ := strconv.ParseFloat(data[1], 64)
-							fields["write_time"] = int(f)
-							break
-						case "nread":
-							fields["read_bytes"], _ = strconv.ParseInt(data[1], 10, 0)
-							break
-						case "nwritten":
-							fields["write_bytes"], _ = strconv.ParseInt(data[1], 10, 0)
-							break
-						case "rcnt":
-							fields["iops_in_progress"], _ = strconv.ParseInt(data[1], 10, 0)
-							break
-						case "wcnt":
-							fields["iops_in_progress"], _ = strconv.ParseInt(data[1], 10, 0)
-							break
-						}
-					}
-					acc.AddGauge("diskio", fields, tags, time.Now())
+				switch field {
+				case "reads":
+					fields["reads"], _ = strconv.ParseInt(data[1], 10, 0)
+					break
+				case "writes":
+					fields["writes"], _ = strconv.ParseInt(data[1], 10, 0)
+					break
+				case "rtime":
+					f, _ := strconv.ParseFloat(data[1], 64)
+					fields["read_time"] = int(f)
+					break
+				case "wtime":
+					f, _ := strconv.ParseFloat(data[1], 64)
+					fields["write_time"] = int(f)
+					break
+				case "nread":
+					fields["read_bytes"], _ = strconv.ParseInt(data[1], 10, 0)
+					break
+				case "nwritten":
+					fields["write_bytes"], _ = strconv.ParseInt(data[1], 10, 0)
+					break
+				case "rcnt":
+					fields["iops_in_progress"], _ = strconv.ParseInt(data[1], 10, 0)
+					break
+				case "wcnt":
+					fields["iops_in_progress"], _ = strconv.ParseInt(data[1], 10, 0)
+					break
 				}
 			}
+			acc.AddGauge("diskio", fields, tags, time.Now())
 		}
 	}
 	return nil
