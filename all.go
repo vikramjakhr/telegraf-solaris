@@ -74,6 +74,10 @@ func InitAllInputs() {
 	AddInput("processes", func() Input {
 		return &Processes{}
 	})
+
+	AddInput("diskio", func() Input {
+		return &DiskIOStats{}
+	})
 }
 
 func InitAllOutputs() {
