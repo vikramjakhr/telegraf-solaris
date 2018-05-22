@@ -4,7 +4,6 @@ import (
 	"log"
 	"os/exec"
 	"strings"
-	"fmt"
 )
 
 type Processes struct {
