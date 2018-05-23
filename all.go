@@ -82,6 +82,10 @@ func InitAllInputs() {
 	AddInput("net", func() Input {
 		return &NetIOStats{}
 	})
+
+	AddInput("swap", func() Input {
+		return &SwapStats{}
+	})
 }
 
 func InitAllOutputs() {
