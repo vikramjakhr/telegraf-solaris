@@ -7,6 +7,7 @@ import (
 	"strings"
 	"strconv"
 	"time"
+	"log"
 )
 
 type NetIOStats struct {
@@ -46,7 +47,7 @@ func (s *NetIOStats) Gather(acc Accumulator) error {
 		rows = rows[0:len(rows)-1]
 
 		for _, row := range rows {
-			idx := strings.IndexAny(row, ":")
+			idx := strings.Index(row, ": ")
 			if idx > 0 {
 				interfaces[row[0:idx]] = ""
 			}
@@ -56,7 +57,8 @@ func (s *NetIOStats) Gather(acc Accumulator) error {
 	for inet, _ := range interfaces {
 		output, err := exec.Command("kstat", "-p", fmt.Sprintf("::%s", inet)).CombinedOutput()
 		if err != nil {
-			return fmt.Errorf("error getting NetIO (kstat) info: %s", err.Error())
+			log.Printf("D! Error getting NetIO (kstat) info: %s\n", err.Error())
+			continue
 		}
 		s := string(output)
 		if s != "" {
