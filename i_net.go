@@ -39,7 +39,7 @@ func (s *NetIOStats) Gather(acc Accumulator) error {
 	} else {
 		c1, err := exec.Command("ifconfig", "-a").CombinedOutput()
 		if err != nil {
-			fmt.Errorf("error getting NetIOStat info: %s", err.Error())
+			return fmt.Errorf("error getting NetIOStat info: %s", err.Error())
 		}
 
 		rows := strings.Split(string(c1), "\n")
