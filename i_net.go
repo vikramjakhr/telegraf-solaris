@@ -92,7 +92,7 @@ func (s *NetIOStats) Gather(acc Accumulator) error {
 					break
 				}
 			}
-			acc.AddGauge("diskio", fields, tags, time.Now())
+			acc.AddGauge("net", fields, tags, time.Now())
 		}
 	}
 	return nil

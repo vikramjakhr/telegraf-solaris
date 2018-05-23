@@ -66,7 +66,7 @@ func (p *Processes) gatherFromPS(fields map[string]interface{}) error {
 			fields["dead"] = fields["dead"].(int64) + int64(1)
 		case "T":
 			fields["stopped"] = fields["stopped"].(int64) + int64(1)
-		case "0":
+		case "O":
 			fields["running"] = fields["running"].(int64) + int64(1)
 		case "S":
 			fields["sleeping"] = fields["sleeping"].(int64) + int64(1)
