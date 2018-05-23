@@ -78,6 +78,10 @@ func InitAllInputs() {
 	AddInput("diskio", func() Input {
 		return &DiskIOStats{}
 	})
+
+	AddInput("net", func() Input {
+		return &NetIOStats{}
+	})
 }
 
 func InitAllOutputs() {
