@@ -92,11 +92,11 @@ func (s *NetStatConnections) isValidConfig() bool {
 	if s.Patterns == nil || len(s.Patterns) < 1 {
 		return false
 	}
-	for _, pattern := range s.Patterns {
+	/*for _, pattern := range s.Patterns {
 		split := strings.Split(pattern, ":")
 		if len(split) != 2 {
 			return false
 		}
-	}
+	}*/
 	return true
 }
