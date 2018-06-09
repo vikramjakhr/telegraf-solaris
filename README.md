@@ -56,3 +56,15 @@ cp /tmp/telegraf-solaris/conf/telegraf.conf /etc/telegraf/telegraf.conf
 ```
 ln -s /etc/init.d/telegraf /etc/rc3.d/S93telegraf
 ```  
+
+# Building the telegraf binary from source
+##### Step 1: Clone the telegraf solaris repository
+```
+git clone git@github.com:vikramjakhr/telegraf-solaris.git
+```
+##### Step 2: Execute below command to create a binary named telegraf (Step 4 above is needed for this)
+```
+cd <path-to-telegraf-solaris-repo>
+/opt/csw/bin/gccgo -o telegraf *.go
+```
+It will create binary in the same directory with the name telegraf. You can now use this binary along with installation steps mentioned above.
