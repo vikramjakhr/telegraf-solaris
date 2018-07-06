@@ -86,6 +86,10 @@ func InitAllInputs() {
 	AddInput("swap", func() Input {
 		return &SwapStats{}
 	})
+
+	AddInput("procstat", func() Input {
+		return &Procstat{}
+	})
 }
 
 func InitAllOutputs() {
