@@ -3,7 +3,6 @@ package main
 import (
 	"os/exec"
 	"strings"
-	"fmt"
 )
 
 type PID int32
@@ -34,10 +33,11 @@ func (p *Procstat) Gather(acc Accumulator) error {
 	}
 
 	fields := map[string]interface{}{}
-	fields["result_type"] = 0
 
 	out, err := execPGrep(p.Pattern, p.User)
 	if err != nil {
+		fields["result_type"] = 1
+		acc.AddFields("procstat", fields, tags)
 		return err
 	}
 
@@ -55,6 +55,7 @@ func (p *Procstat) Gather(acc Accumulator) error {
 			if stats != "" {
 				data := strings.Fields(stats)
 				if len(data) == 3 {
+					fields["result_type"] = 0
 					fields["cpu_usage"] = data[0]
 					fields["memory_rss"] = data[1]
 					fields["memory_vms"] = data[2]
@@ -71,12 +72,12 @@ func (p *Procstat) Gather(acc Accumulator) error {
 }
 
 func execPGrep(pattern, user string) ([]byte, error) {
-	command := fmt.Sprintf("pgrep %s", pattern)
+	command := exec.Command("/usr/bin/pgrep", "-f", pattern)
 	user = strings.Trim(user, " ")
 	if user != "" {
-		command = fmt.Sprintf("pgrep %s -u %s", pattern, user)
+		command = exec.Command("pgrep", "-f", pattern, "-u", user)
 	}
-	out, err := exec.Command(command).Output()
+	out, err := command.Output()
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +86,7 @@ func execPGrep(pattern, user string) ([]byte, error) {
 }
 
 func processPID(pid string) ([]byte, error) {
-	out, err := exec.Command(fmt.Sprintf("ps -p %s  -o pcpu= -o rss= -o vsz=", pid)).Output()
+	out, err := exec.Command("ps", "-p", pid, "-o", "pcpu=", "-o", "rss=", "-o", "vsz=").Output()
 	if err != nil {
 		return nil, err
 	}
