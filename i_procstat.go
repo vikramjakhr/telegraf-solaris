@@ -3,6 +3,7 @@ package main
 import (
 	"os/exec"
 	"strings"
+	"strconv"
 )
 
 type PID int32
@@ -55,10 +56,13 @@ func (p *Procstat) Gather(acc Accumulator) error {
 			if stats != "" {
 				data := strings.Fields(stats)
 				if len(data) == 3 {
+					cu, _ := strconv.ParseFloat(data[0], 64)
+					mrss, _ := strconv.ParseInt(data[1], 10, 0)
+					mvms, _ := strconv.ParseInt(data[2], 10, 0)
 					fields["result_type"] = 0
-					fields["cpu_usage"] = data[0]
-					fields["memory_rss"] = data[1]
-					fields["memory_vms"] = data[2]
+					fields["cpu_usage"] = cu
+					fields["memory_rss"] = mrss
+					fields["memory_vms"] = mvms
 				}
 			} else {
 				fields["result_type"] = 1
