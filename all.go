@@ -2,6 +2,7 @@ package main
 
 import (
 	"time"
+	"github.com/influxdata/telegraf"
 )
 
 func InitAllInputs() {
@@ -89,6 +90,12 @@ func InitAllInputs() {
 
 	AddInput("procstat", func() Input {
 		return &Procstat{}
+	})
+
+	AddInput("ntpq", func() Input {
+		n := &NTPQ{}
+		n.runQ = n.runq
+		return n
 	})
 }
 
