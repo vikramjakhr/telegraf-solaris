@@ -472,14 +472,14 @@ func parseFile(fpath string) (*Table, error) {
 	contents = trimBOM(contents)
 
 	// commenting below code for skipping env variables
-	/*	env_vars := envVarRe.FindAll(contents, -1)
-		for _, env_var := range env_vars {
-			env_val, ok := os.LookupEnv(strings.TrimPrefix(string(env_var), "$"))
-			if ok {
-				env_val = escapeEnv(env_val)
-				contents = bytes.Replace(contents, env_var, []byte(env_val), 1)
-			}
-		}*/
+	env_vars := envVarRe.FindAll(contents, -1)
+	for _, env_var := range env_vars {
+		env_val, ok := os.LookupEnv(strings.TrimPrefix(string(env_var), "$"))
+		if ok {
+			env_val = escapeEnv(env_val)
+			contents = bytes.Replace(contents, env_var, []byte(env_val), 1)
+		}
+	}
 
 	return Parse(contents)
 }
