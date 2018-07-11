@@ -474,10 +474,13 @@ func parseFile(fpath string) (*Table, error) {
 	// commenting below code for skipping env variables
 	env_vars := envVarRe.FindAll(contents, -1)
 	for _, env_var := range env_vars {
-		env_val, ok := os.LookupEnv(strings.TrimPrefix(string(env_var), "$"))
-		if ok {
-			env_val = escapeEnv(env_val)
-			contents = bytes.Replace(contents, env_var, []byte(env_val), 1)
+		key := strings.TrimPrefix(string(env_var), "$")
+		if key == "HOSTNAME" {
+			env_val, err := os.Hostname()
+			if err == nil {
+				env_val = escapeEnv(env_val)
+				contents = bytes.Replace(contents, env_var, []byte(env_val), 1)
+			}
 		}
 	}
 

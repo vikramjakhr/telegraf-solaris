@@ -196,16 +196,15 @@ func (h *JBoss4) getJVMStatistics(
 	out, err := h.doRequest(serverURL)
 
 	log.Printf("I! JBoss4 API Req err: %s", err)
-	//log.Printf("I! JBoss4 API Req out: %s", out)
 
 	if err != nil {
-		return fmt.Errorf("error on request to %s : %s\n", serverURL, err)
+		return fmt.Errorf("E! Error on request to %s : %s\n", serverURL, err)
 	}
 
 	respHtml := string(out[:])
 	fields := parseHtml(respHtml)
 	if len(fields) > 0 {
-		log.Printf("Jboss4 response fields: %v", fields)
+		log.Printf("I! Jboss4 response fields: %v", fields)
 
 		tags := map[string]string{
 			"jboss_host":   host,

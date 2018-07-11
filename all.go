@@ -2,7 +2,6 @@ package main
 
 import (
 	"time"
-	"github.com/influxdata/telegraf"
 )
 
 func InitAllInputs() {
