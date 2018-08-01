@@ -58,7 +58,7 @@ func (s *SwapStats) Gather(acc Accumulator) error {
 
 			acc.AddGauge("swap", fieldsG, nil)
 
-			output, err = exec.Command("vmstat", "-S").CombinedOutput()
+			output, err = exec.Command("vmstat", "-S", "1", "2").CombinedOutput()
 			if err != nil {
 				return fmt.Errorf("error getting Swap Memory info: %s", err.Error())
 			}
@@ -68,7 +68,7 @@ func (s *SwapStats) Gather(acc Accumulator) error {
 			rows = rows[1:]
 			data := make(map[string]uint64)
 			headers := strings.Fields(rows[0])
-			values := strings.Fields(rows[1])
+			values := strings.Fields(rows[2])
 			for count := 0; count < len(headers); count++ {
 				v, _ := strconv.ParseUint(values[count], 10, 0)
 				data[headers[count]] = v
