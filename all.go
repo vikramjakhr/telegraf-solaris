@@ -96,6 +96,10 @@ func InitAllInputs() {
 		n.runQ = n.runq
 		return n
 	})
+
+	AddInput("exec", func() Input {
+		return NewExec()
+	})
 }
 
 func InitAllOutputs() {
