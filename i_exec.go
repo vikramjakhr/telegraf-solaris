@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strconv"
 	"bytes"
+	"log"
 )
 
 const sampleExecConfig = `
@@ -65,7 +66,7 @@ func (e *Exec) ProcessCommand(command string, acc Accumulator, wg *sync.WaitGrou
 					measurement := parseMeasurement(data[0])
 					fields := parseFields(data[1])
 					tags := parseTags(data[0])
-					if measurement != "" && len(fields) != 0 && len(tags) != 0 {
+					if measurement != "" && fields != nil && len(fields) != 0 && tags != nil && len(tags) != 0 {
 						acc.AddFields(measurement, parseFields(data[1]), parseTags(data[0]), now)
 					}
 				}
@@ -79,23 +80,33 @@ func parseMeasurement(str string) string {
 }
 
 func parseTags(str string) map[string]string {
+	if str == "" {
+		return nil
+	}
+	str = strings.SplitN(str, ",", 2)[1]
 	tags := make(map[string]string)
 	arr := strings.Split(str, ",")
 	for _, value := range arr {
 		data := strings.Split(value, "=")
-		if len(data) == 2 {
+		if len(data) == 2 && data[1] != "" {
 			tags[data[0]] = data[1]
+		} else {
+			log.Printf("E! Error while parsing tag %s", data[0])
+			return nil
 		}
 	}
 	return tags
 }
 
 func parseFields(str string) map[string]interface{} {
+	if str == "" {
+		return nil
+	}
 	fields := make(map[string]interface{})
 	arr := strings.Split(str, ",")
 	for _, value := range arr {
 		data := strings.Split(value, "=")
-		if len(data) == 2 {
+		if len(data) == 2 && data[1] != ""{
 			if isInteger(data[1]) {
 				val, err := strconv.Atoi(strings.TrimSuffix(data[1], "i"))
 				if err == nil {
@@ -109,6 +120,9 @@ func parseFields(str string) map[string]interface{} {
 					fields[data[0]] = val
 				}
 			}
+		} else {
+			log.Printf("E! Error while parsing field %s", data[0])
+			return nil
 		}
 	}
 	return fields
