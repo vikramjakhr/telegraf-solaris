@@ -54,6 +54,7 @@ func (s *MemStats) Gather(acc Accumulator) error {
 		return err
 	}
 
+	// Memory
 	output, err := exec.Command("vmstat", "-S", "1", "2").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("error getting Memory info: %s", err.Error())
@@ -82,5 +83,22 @@ func (s *MemStats) Gather(acc Accumulator) error {
 	}
 
 	acc.AddCounter("mem", fields, nil, now)
+
+	// Paging
+	pagingData := make(map[string]float64)
+	for count := 0; count < len(headers); count++ {
+		v, _ := strconv.ParseFloat(values[count], 64)
+		pagingData[headers[count]] = v
+	}
+
+	fields = map[string]interface{}{
+		"pgpgin_per_s":  pagingData["pi"] * 1024,
+		"pgpgout_per_s": pagingData["po"] * 1024,
+		"pgfree_per_s":  pagingData["fr"] * 1024,
+		"pgscand_per_s": pagingData["sr"],
+		"fault_per_s":   pagingData["in"],
+	}
+
+	acc.AddCounter("paging", fields, nil, now)
 	return nil
 }

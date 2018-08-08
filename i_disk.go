@@ -76,5 +76,39 @@ func (s *DiskStats) Gather(acc Accumulator) error {
 		acc.AddGauge("disk", fields, tags, now)
 	}
 
+	output, err = exec.Command("iostat", "-x", "1", "2").CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("error getting Disk info: %s", err.Error())
+	}
+
+	stats = string(output)
+	rows = strings.Split(stats, "\n")
+	rows = rows[:len(rows)-1]
+	for count := len(rows) - 1; ; count-- {
+		data := strings.Fields(rows[count])
+		if data[0] != "device" && data[1] != "r/s" {
+			tags := map[string]string{
+				"device": data[0],
+			}
+			r_s, _ := strconv.ParseFloat(data[1], 64)
+			w_s, _ := strconv.ParseFloat(data[2], 64)
+			wait, _ := strconv.ParseFloat(data[5], 64)
+			svc_t, _ := strconv.ParseFloat(data[7], 64)
+			b, _ := strconv.ParseFloat(data[9], 64)
+
+			fields := map[string]interface{}{
+				"rd_sec_per_s": r_s,
+				"wr_sec_per_s": w_s,
+				"await":        wait,
+				"tps":          svc_t,
+				"avgqu-sz":     b,
+			}
+
+			acc.AddGauge("disk", fields, tags, now)
+		} else {
+			break
+		}
+	}
+
 	return nil
 }

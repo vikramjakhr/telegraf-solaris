@@ -104,7 +104,7 @@ func (s *DiskIOStats) Gather(acc Accumulator) error {
 					fields["iops_in_progress"], _ = strconv.ParseInt(data[1], 10, 0)
 					break
 				case "wcnt":
-					fields["iops_in_progress"], _ = strconv.ParseInt(data[1], 10, 0)
+					fields["weighted_io_time"], _ = strconv.ParseInt(data[1], 10, 0)
 					break
 				}
 			}

@@ -73,5 +73,13 @@ func (s *CPUStats) Gather(acc Accumulator) error {
 	}
 
 	acc.AddCounter("cpu", fieldsC, tags, now)
+
+	// Task
+	fields := map[string]interface{}{
+		"cswch_per_s": data["cs"],
+		"proc_per_s":  data["sy"],
+	}
+
+	acc.AddCounter("task", fields, nil, now)
 	return nil
 }
