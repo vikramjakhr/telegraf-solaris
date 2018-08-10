@@ -4,6 +4,7 @@ import (
 	"log"
 	"os/exec"
 	"strings"
+	"strconv"
 )
 
 type Processes struct {
@@ -80,6 +81,12 @@ func (p *Processes) gatherFromPS(fields map[string]interface{}) error {
 		}
 		fields["total"] = fields["total"].(int64) + int64(1)
 	}
+	th, err := totalThread()
+	if err != nil {
+		log.Print("E! Error while fetching total_threads, ", err)
+	} else {
+		fields["total_threads"] = th
+	}
 	return nil
 }
 
@@ -90,4 +97,21 @@ func execPS() ([]byte, error) {
 	}
 
 	return out, err
+}
+
+func totalThread() (int64, error) {
+	out, err := exec.Command("prstat", "1", "1").Output()
+	if err != nil {
+		return 0, err
+	}
+
+	rows := strings.Split(string(out), "\n")
+
+	row := rows[len(rows)-2]
+
+	s := strings.Split(row, ", ")
+
+	totalThread, err := strconv.ParseInt(strings.Trim(strings.Split(s[1], " ")[0], " "), 10, 0)
+
+	return totalThread, err
 }
