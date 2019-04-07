@@ -1,0 +1,65 @@
+#! /usr/bin/env bash 
+
+
+
+USER=telegraf 
+GROUP=telegraf 
+config="/etc/telegraf/telegraf.conf" 
+PID=`ps -e|grep tele|awk '{print $1}'` 
+daemon=/usr/bin/telegraf 
+logfile="/var/log/telegraf/telegraf.log" 
+log_dir="/var/log/telegraf/" 
+if [ ! -d $log_dir ] 
+    then 
+    mkdir -p $log_dir 
+    chown -R $USER:$GROUP $log_dir 
+fi 
+
+
+case $1 in 
+    start) 
+        # Checked the PID file exists and check the actual status of process 
+        if [ ! -z $PID ]; then 
+            echo "process already running" 
+            elif [  -z $PID ]; then 
+                echo "Starting Telegraf agent" 
+                   su  $USER  -c "$daemon  --config $config  >> $logfile 2>&1 &" 
+
+                exit 0 # Exit 
+        fi 
+        ;; 
+
+    stop) 
+        # Stop the daemon. 
+        if [ -z $PID ]; then 
+            echo "telegraf already stopped" 
+        elif [ ! -z $PID ]; then 
+            echo "stopping telegraf" 
+            kill -9 $PID 
+            if [ $? = 0 ] ; then 
+                echo "telegraf stopped" 
+            else 
+                echo "problem in stopping telgraf" 
+            fi 
+        fi 
+        ;; 
+        status) 
+        if [ ! -z $PID ]; then 
+        echo "telegraf is running on PID $PID" 
+        else 
+        echo "telegraf not runnng" 
+        fi 
+        ;; 
+        restart) 
+        $0 stop 
+        $0 start 
+;; 
+    *) 
+        # For invalid arguments, print the usage message. 
+        echo "Usage: $0 {start|stop|status|restart}" 
+        exit 2 
+        ;; 
+esac 
+
+
+
