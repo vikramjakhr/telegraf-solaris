@@ -43,6 +43,7 @@ func (p *Procstat) Gather(acc Accumulator) error {
 	}
 
 	rows := strings.Split(strings.Trim(string(out), " "), "\n")
+	rows = rows[0: len(rows)-1]
 
 	if len(rows) > 0 {
 		for _, pid := range rows {
@@ -79,7 +80,7 @@ func execPGrep(pattern, user string) ([]byte, error) {
 	command := exec.Command("/usr/bin/pgrep", "-f", pattern)
 	user = strings.Trim(user, " ")
 	if user != "" {
-		command = exec.Command("pgrep", "-f", pattern, "-u", user)
+		command = exec.Command("/usr/bin/pgrep", "-f", pattern, "-u", user)
 	}
 	out, err := command.Output()
 	if err != nil {
@@ -90,7 +91,7 @@ func execPGrep(pattern, user string) ([]byte, error) {
 }
 
 func processPID(pid string) ([]byte, error) {
-	out, err := exec.Command("ps", "-p", pid, "-o", "pcpu=", "-o", "rss=", "-o", "vsz=").Output()
+	out, err := exec.Command("/usr/bin/ps", "-p", pid, "-o", "pcpu=", "-o", "rss=", "-o", "vsz=").Output()
 	if err != nil {
 		return nil, err
 	}

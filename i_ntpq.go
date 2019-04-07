@@ -199,7 +199,7 @@ func (n *NTPQ) Gather(acc Accumulator) error {
 }
 
 func (n *NTPQ) runq() ([]byte, error) {
-	bin, err := exec.LookPath("ntpq")
+	bin, err := exec.LookPath("/usr/sbin/ntpq")
 	if err != nil {
 		return nil, err
 	}

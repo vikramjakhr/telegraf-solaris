@@ -19,7 +19,7 @@ func (_ *SwapStats) SampleConfig() string { return "" }
 
 func (s *SwapStats) Gather(acc Accumulator) error {
 
-	output, err := exec.Command("swap", "-s").CombinedOutput()
+	output, err := exec.Command("/usr/sbin/swap", "-s").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("error getting Swap info: %s", err.Error())
 	}
@@ -58,7 +58,7 @@ func (s *SwapStats) Gather(acc Accumulator) error {
 
 			acc.AddGauge("swap", fieldsG, nil)
 
-			output, err = exec.Command("vmstat", "-S", "1", "2").CombinedOutput()
+			output, err = exec.Command("/usr/bin/vmstat", "-S", "1", "2").CombinedOutput()
 			if err != nil {
 				return fmt.Errorf("error getting Swap Memory info: %s", err.Error())
 			}

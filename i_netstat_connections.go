@@ -29,7 +29,7 @@ func (s *NetStatConnections) Gather(acc Accumulator) error {
 	if !s.isValidConfig() {
 		return fmt.Errorf("Invalid netstat connection configuration")
 	}
-	out, err := exec.Command("netstat", "-an").CombinedOutput()
+	out, err := exec.Command("/usr/bin/netstat", "-an").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("Error executing netstat request")
 	}

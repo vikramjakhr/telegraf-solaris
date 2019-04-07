@@ -91,7 +91,7 @@ func (p *Processes) gatherFromPS(fields map[string]interface{}) error {
 }
 
 func execPS() ([]byte, error) {
-	out, err := exec.Command("ps", "-el").Output()
+	out, err := exec.Command("/usr/bin/ps", "-el").Output()
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +100,7 @@ func execPS() ([]byte, error) {
 }
 
 func totalThread() (int64, error) {
-	out, err := exec.Command("prstat", "1", "1").Output()
+	out, err := exec.Command("/usr/bin/prstat", "1", "1").Output()
 	if err != nil {
 		return 0, err
 	}

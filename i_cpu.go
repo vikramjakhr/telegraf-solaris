@@ -44,7 +44,7 @@ func (_ *CPUStats) SampleConfig() string {
 }
 
 func (s *CPUStats) Gather(acc Accumulator) error {
-	output, err := exec.Command("vmstat", "-S", "1", "2").CombinedOutput()
+	output, err := exec.Command("/usr/bin/vmstat", "-S", "1", "2").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("error getting CPU info: %s", err.Error())
 	}

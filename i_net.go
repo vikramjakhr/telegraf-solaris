@@ -38,7 +38,7 @@ func (s *NetIOStats) Gather(acc Accumulator) error {
 			interfaces[value] = ""
 		}
 	} else {
-		c1, err := exec.Command("ifconfig", "-a").CombinedOutput()
+		c1, err := exec.Command("/usr/sbin/ifconfig", "-a").CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("error getting NetIOStat info: %s", err.Error())
 		}
@@ -55,7 +55,7 @@ func (s *NetIOStats) Gather(acc Accumulator) error {
 	}
 
 	for inet, _ := range interfaces {
-		output, err := exec.Command("kstat", "-p", fmt.Sprintf("::%s", inet)).CombinedOutput()
+		output, err := exec.Command("/usr/bin/kstat", "-p", fmt.Sprintf("::%s", inet)).CombinedOutput()
 		if err != nil {
 			log.Printf("D! Error getting NetIO (kstat) info: %s\n", err.Error())
 			continue

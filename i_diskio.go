@@ -54,7 +54,7 @@ func (s *DiskIOStats) Gather(acc Accumulator) error {
 	if len(s.Devices) > 0 {
 		devices = s.Devices
 	} else {
-		output, err := exec.Command("iostat", "-d").CombinedOutput()
+		output, err := exec.Command("/usr/bin/iostat", "-d").CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("error getting DiskIO info: %s", err.Error())
 		}
@@ -62,7 +62,7 @@ func (s *DiskIOStats) Gather(acc Accumulator) error {
 	}
 
 	for _, device := range devices {
-		output, err := exec.Command("kstat", "-p", fmt.Sprintf("*:*:%s:*", device)).CombinedOutput()
+		output, err := exec.Command("/usr/bin/kstat", "-p", fmt.Sprintf("*:*:%s:*", device)).CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("error getting DiskIO (kstat) info: %s", err.Error())
 		}

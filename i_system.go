@@ -22,7 +22,7 @@ func (_ *SystemStats) Description() string {
 func (_ *SystemStats) SampleConfig() string { return "" }
 
 func (_ *SystemStats) Gather(acc Accumulator) error {
-	output, err := exec.Command("uptime").CombinedOutput()
+	output, err := exec.Command("/usr/bin/uptime").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("error getting System info: %s", err.Error())
 	}

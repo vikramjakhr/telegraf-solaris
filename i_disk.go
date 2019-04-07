@@ -37,7 +37,7 @@ func (_ *DiskStats) SampleConfig() string {
 }
 
 func (s *DiskStats) Gather(acc Accumulator) error {
-	output, err := exec.Command("df", "-k").CombinedOutput()
+	output, err := exec.Command("/usr/sbin/df", "-k").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("error getting Disk info: %s", err.Error())
 	}
@@ -76,7 +76,7 @@ func (s *DiskStats) Gather(acc Accumulator) error {
 		acc.AddGauge("disk", fields, tags, now)
 	}
 
-	output, err = exec.Command("iostat", "-x", "1", "2").CombinedOutput()
+	output, err = exec.Command("/usr/bin/iostat", "-x", "1", "2").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("error getting Disk info: %s", err.Error())
 	}

@@ -55,7 +55,7 @@ func (s *MemStats) Gather(acc Accumulator) error {
 	}
 
 	// Memory
-	output, err := exec.Command("vmstat", "-S", "1", "2").CombinedOutput()
+	output, err := exec.Command("/usr/bin/vmstat", "-S", "1", "2").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("error getting Memory info: %s", err.Error())
 	}
