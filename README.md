@@ -33,7 +33,7 @@ cp -r /tmp/telegraf-solaris/opt/csw /opt
 ```  
 ##### Step 5: Copy telegraf binary and give it execute permission
 ```
-cp /tmp/telegraf-solaris/bin/telgraf /usr/bin/telgraf; chmod +x /usr/bin/telgraf
+cp /tmp/telegraf-solaris/bin/telegraf /usr/bin/telegraf; chmod +x /usr/bin/telegraf
 ```
 ##### Step 6: Copy telegraf init.d start/stop script:
 ```
