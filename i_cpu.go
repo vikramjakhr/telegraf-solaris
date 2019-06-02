@@ -44,7 +44,7 @@ func (_ *CPUStats) SampleConfig() string {
 }
 
 func (s *CPUStats) Gather(acc Accumulator) error {
-	output, err := exec.Command("vmstat", "-S").CombinedOutput()
+	output, err := exec.Command("/usr/bin/vmstat", "-S", "1", "2").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("error getting CPU info: %s", err.Error())
 	}
@@ -56,7 +56,7 @@ func (s *CPUStats) Gather(acc Accumulator) error {
 	rows = rows[1:]
 	data := make(map[string]float64)
 	headers := strings.Fields(rows[0])
-	values := strings.Fields(rows[1])
+	values := strings.Fields(rows[2])
 	for count := 0; count < len(headers); count++ {
 		v, _ := strconv.ParseFloat(values[count], 64)
 		data[headers[count]] = v
@@ -73,5 +73,13 @@ func (s *CPUStats) Gather(acc Accumulator) error {
 	}
 
 	acc.AddCounter("cpu", fieldsC, tags, now)
+
+	// Task
+	fields := map[string]interface{}{
+		"cswch_per_s": data["cs"],
+		"proc_per_s":  data["sy"],
+	}
+
+	acc.AddCounter("task", fields, nil, now)
 	return nil
 }
